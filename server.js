@@ -71,53 +71,27 @@ async function startServer() {
 // Start the server
 startServer();
 
-// CORS configuration - MUST come before other middleware
-const allowedOrigins = process.env.CORS_ORIGIN ? 
-  process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) : 
-  [
-    'http://localhost:3000', 
-    'http://localhost:8081', 
+// CORS configuration
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:8080',
     'https://loyalty-frontend.netlify.app',
     'https://loyalty-admin.netlify.app'
-  ];
-
-console.log('Allowed CORS origins:', allowedOrigins);
-
-// CORS configuration with proper options
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // In development, be more permissive with localhost origins
-    if (process.env.NODE_ENV === 'development' && origin && origin.includes('localhost')) {
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      console.log('Allowed origins:', allowedOrigins);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  ],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
 
 // Security middleware - after CORS
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-app.use(compression());
+// app.use(helmet({
+//   crossOriginResourcePolicy: { policy: "cross-origin" }
+// }));
+// app.use(compression());
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {
   res.json({ 

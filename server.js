@@ -42,6 +42,27 @@ const { errorHandler } = require('./middleware/errorHandler');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Function to find an available port
+function findAvailablePort(startPort) {
+  return new Promise((resolve, reject) => {
+    const server = require('net').createServer();
+    
+    server.listen(startPort, () => {
+      const port = server.address().port;
+      server.close(() => resolve(port));
+    });
+    
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        // Try next port
+        findAvailablePort(startPort + 1).then(resolve).catch(reject);
+      } else {
+        reject(err);
+      }
+    });
+  });
+}
+
 // Function to start the server
 async function startServer() {
   try {
@@ -49,12 +70,19 @@ async function startServer() {
     await database.connect();
     console.log('✅ MongoDB connected successfully');
     
+    console.log('🔄 Finding available port...');
+    const availablePort = await findAvailablePort(PORT);
+    
+    if (availablePort !== PORT) {
+      console.log(`⚠️  Port ${PORT} is in use, using port ${availablePort} instead`);
+    }
+    
     console.log('🔄 Starting server...');
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+    app.listen(availablePort, () => {
+      console.log(`🚀 Server running on port ${availablePort}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-      console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
+      console.log(`🔗 Health check: http://localhost:${availablePort}/health`);
+      console.log(`📚 API Documentation: http://localhost:${availablePort}/api/docs`);
       console.log(`🗄️  Database: MongoDB`);
       console.log(`✅ Server startup complete!`);
     }).on('error', (err) => {

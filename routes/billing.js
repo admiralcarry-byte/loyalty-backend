@@ -19,6 +19,8 @@ const {
 const { verifyToken, requireManager } = require('../middleware/auth');
 const billingCompanyService = require('../services/billingCompanyService');
 const ocrParser = require('../utils/ocrParser');
+const advancedOCR = require('../utils/advancedOCR');
+const ultimateOCR = require('../utils/ultimateOCR');
 const reconciliationService = require('../services/reconciliationService');
 
 const router = express.Router();
@@ -41,17 +43,17 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit for high-resolution images
   },
   fileFilter: function (req, file, cb) {
-    const allowedTypes = /jpeg|jpg|png|pdf|tiff|bmp/;
+    const allowedTypes = /jpeg|jpg|png|pdf|tiff|bmp|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
     if (mimetype && extname) {
       return cb(null, true);
     } else {
-      cb(new Error('Only image files and PDFs are allowed'));
+      cb(new Error('Only image files and PDFs are allowed (JPG, PNG, PDF, TIFF, BMP, WebP)'));
     }
   }
 });
@@ -663,8 +665,18 @@ router.post('/upload-receipt', [
     // Verify user and store exist
     const userModel = new User();
     const storeModel = new Store();
-    const user = await userModel.findById(userId);
-    const store = await storeModel.findById(storeId);
+    
+    let user, store;
+    try {
+      user = await userModel.findById(userId);
+      store = await storeModel.findById(storeId);
+    } catch (dbError) {
+      console.error('Database query error:', dbError);
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection error. Please try again.'
+      });
+    }
 
     if (!user) {
       return res.status(404).json({
@@ -680,8 +692,36 @@ router.post('/upload-receipt', [
       });
     }
 
-    // Process receipt with OCR
-    const ocrResult = await ocrParser.processReceipt(req.file.path);
+    // Process receipt with Ultimate OCR System
+    let ocrResult;
+    try {
+      // Determine optimal processing mode based on file characteristics
+      const recommendedMode = ultimateOCR.getRecommendedMode(req.file.path);
+      console.log(`Starting Ultimate OCR processing in ${recommendedMode} mode...`);
+      
+      ocrResult = await ultimateOCR.processReceipt(req.file.path, recommendedMode);
+      console.log(`Ultimate OCR completed with method: ${ocrResult.extractionMethod}, technique: ${ocrResult.technique}`);
+    } catch (ocrError) {
+      console.error('Ultimate OCR processing error:', ocrError);
+      // Fallback to advanced OCR if ultimate fails
+      try {
+        console.log('Falling back to advanced OCR...');
+        ocrResult = await advancedOCR.processReceipt(req.file.path);
+      } catch (advancedError) {
+        console.error('Advanced OCR fallback failed:', advancedError);
+        // Final fallback to standard OCR
+        try {
+          console.log('Falling back to standard OCR...');
+          ocrResult = await ocrParser.processReceipt(req.file.path);
+        } catch (fallbackError) {
+          console.error('All OCR methods failed:', fallbackError);
+          return res.status(500).json({
+            success: false,
+            error: 'OCR processing failed. Please try again with a different image.'
+          });
+        }
+      }
+    }
 
     if (!ocrResult.success) {
       return res.status(400).json({
@@ -690,8 +730,19 @@ router.post('/upload-receipt', [
       });
     }
 
-    // Validate extracted data
-    const validation = ocrParser.validateExtractedData(ocrResult.parsedData);
+    // Validate extracted data using appropriate validator
+    let validation;
+    if (['maximum', 'accurate', 'balanced', 'fast'].includes(ocrResult.extractionMethod)) {
+      // Use advanced validation for ultimate OCR results
+      validation = advancedOCR.validateAdvancedExtractedData(ocrResult.parsedData);
+    } else if (ocrResult.extractionMethod === 'advanced') {
+      // Use advanced validation for advanced OCR results
+      validation = advancedOCR.validateAdvancedExtractedData(ocrResult.parsedData);
+    } else {
+      // Use standard validation for fallback OCR results
+      validation = ocrParser.validateExtractedData(ocrResult.parsedData);
+    }
+    
     if (!validation.isValid) {
       return res.status(400).json({
         success: false,
@@ -700,37 +751,53 @@ router.post('/upload-receipt', [
         warnings: validation.warnings || [],
         extractedData: ocrResult.parsedData,
         extractedText: ocrResult.extractedText,
-        confidence: ocrResult.confidence
+        confidence: ocrResult.confidence,
+        technique: ocrResult.technique || 'standard'
       });
     }
 
     // Create scan upload record
-    const scanUploadModel = new ScanUpload();
-    const scanUpload = await scanUploadModel.create({
-      userId,
-      storeId,
-      invoiceNumber: ocrResult.parsedData.invoiceNumber,
-      amount: ocrResult.parsedData.amount,
-      date: purchaseDate || ocrResult.parsedData.date,
-      status: 'provisional',
-      filePath: req.file.path,
-      ocrExtractedText: ocrResult.extractedText
-    });
+    let scanUpload;
+    try {
+      scanUpload = await ScanUpload.create({
+        userId,
+        storeId,
+        invoiceNumber: ocrResult.parsedData.invoiceNumber,
+        amount: ocrResult.parsedData.amount,
+        date: purchaseDate || ocrResult.parsedData.date,
+        status: 'provisional',
+        filePath: req.file.path,
+        ocrExtractedText: ocrResult.extractedText
+      });
+    } catch (dbError) {
+      console.error('ScanUpload creation error:', dbError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to save receipt data. Please try again.'
+      });
+    }
 
     // Log audit trail
-    const auditLogModel = new AuditLog();
-    await auditLogModel.create({
-      action: 'receipt_upload',
-      userId: userId, // Use the userId from request body since auth is disabled
-      details: {
-        scanUploadId: scanUpload._id,
-        fileName: req.file.filename,
-        extractedData: ocrResult.parsedData,
-        confidence: ocrResult.confidence
-      },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
-    });
+    try {
+      await AuditLog.create({
+        action: 'receipt_upload',
+        user: userId, // Use the userId from request body since auth is disabled
+        user_role: 'user', // Default role since auth is disabled
+        entity_type: 'Sale',
+        entity_id: scanUpload._id,
+        details: {
+          scanUploadId: scanUpload._id,
+          fileName: req.file.filename,
+          extractedData: ocrResult.parsedData,
+          confidence: ocrResult.confidence
+        },
+        user_ip: req.ip,
+        user_agent: req.get('User-Agent')
+      });
+    } catch (auditError) {
+      console.error('Audit log creation error:', auditError);
+      // Don't fail the request for audit log errors, just log them
+    }
 
     res.json({
       success: true,
@@ -740,7 +807,17 @@ router.post('/upload-receipt', [
         extractedData: ocrResult.parsedData,
         confidence: ocrResult.confidence,
         status: 'provisional',
-        warnings: validation.warnings || []
+        warnings: validation.warnings || [],
+        ocrDetails: {
+          technique: ocrResult.technique || 'standard',
+          extractionMethod: ocrResult.extractionMethod || 'standard',
+          processingTime: ocrResult.processingTime,
+          timestamp: ocrResult.timestamp,
+          mode: ocrResult.mode || 'balanced'
+        },
+        ensembleDetails: ocrResult.ensembleDetails || null,
+        structureDetails: ocrResult.structureDetails || null,
+        processingDetails: ocrResult.processingDetails || null
       }
     });
   } catch (error) {
@@ -754,6 +831,25 @@ router.post('/upload-receipt', [
     res.status(500).json({
       success: false,
       error: 'Failed to process receipt upload'
+    });
+  }
+});
+
+// @route   GET /api/billing/ocr-status
+// @desc    Get OCR system status and capabilities
+// @access  Private (Manager+)
+router.get('/ocr-status', async (req, res) => {
+  try {
+    const status = ultimateOCR.getSystemStatus();
+    res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    console.error('OCR status error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get OCR system status'
     });
   }
 });
@@ -921,7 +1017,10 @@ router.post('/scan-uploads/:id/reconcile', [
     // Log audit trail
     await AuditLog.create({
       action: `scan_upload_${action}`,
-      userId: req.user.id,
+      user: req.user.id,
+      user_role: req.user.role || 'user',
+      entity_type: 'Sale',
+      entity_id: id,
       details: {
         scanUploadId: id,
         action,
@@ -929,8 +1028,8 @@ router.post('/scan-uploads/:id/reconcile', [
         purchaseEntryId,
         onlinePurchaseId
       },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      user_ip: req.ip,
+      user_agent: req.get('User-Agent')
     });
 
   } catch (error) {
@@ -1098,13 +1197,16 @@ router.post('/reconcile', [verifyToken, requireManager], async (req, res) => {
     // Log audit trail
     await AuditLog.create({
       action: 'reconciliation_run',
-      userId: req.user.id,
+      user: req.user.id,
+      user_role: req.user.role || 'user',
+      entity_type: 'System',
+      entity_id: new mongoose.Types.ObjectId(), // Generate new ID for system operations
       details: {
         type,
         result
       },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
+      user_ip: req.ip,
+      user_agent: req.get('User-Agent')
     });
 
     res.json({

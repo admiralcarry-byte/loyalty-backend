@@ -95,4 +95,4 @@ InfluencerLevelSchema.statics.getLevelStats = function() {
   ]);
 };
 
-module.exports = InfluencerLevelSchema;
+module.exports = mongoose.model('InfluencerLevel', InfluencerLevelSchema, 'influencerlevels');

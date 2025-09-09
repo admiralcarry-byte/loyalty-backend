@@ -17,12 +17,19 @@ class Database {
       const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/aguatwezah_admin';
       
       console.log('🚀 Connecting to MongoDB...');
+      console.log('📍 Connection URI:', mongoUri.replace(/\/\/.*@/, '//***:***@')); // Hide credentials in logs
       
-      this.connection = await mongoose.connect(mongoUri, {
+      // Enhanced connection options for Atlas
+      const connectionOptions = {
         maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 30000, // Increased for Atlas
         socketTimeoutMS: 45000,
-      });
+        connectTimeoutMS: 30000, // Increased for Atlas
+        retryWrites: true,
+        w: 'majority',
+      };
+      
+      this.connection = await mongoose.connect(mongoUri, connectionOptions);
 
       this.isConnected = true;
       console.log('✅ Connected to MongoDB successfully');

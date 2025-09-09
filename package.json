@@ -8,7 +8,20 @@
     "dev": "nodemon server.js",
     "setup-mongodb": "node scripts/setup-mongodb.js",
     "seed-mongodb": "node scripts/seed-mongodb.js",
-    "setup": "npm run setup-mongodb && npm run seed-mongodb"
+    "setup": "npm run setup-mongodb && npm run seed-mongodb",
+    "init-db": "node scripts/init-db.js",
+    "migrate": "node scripts/migrate.js up",
+    "migrate:status": "node scripts/migrate.js status",
+    "migrate:rollback": "node scripts/migrate.js rollback",
+    "migrate:reset": "node scripts/migrate.js reset",
+    "migrate:test": "node scripts/test-migrations.js",
+    "setup-db": "node scripts/setup-db-connection.js",
+    "fix-mongodb": "node scripts/quick-fix-mongodb.js",
+    "seed": "node scripts/seed.js seed",
+    "seed:status": "node scripts/seed.js status",
+    "seed:clear": "node scripts/seed.js clear",
+    "setup-complete": "node scripts/setup-complete.js",
+    "create-env": "node scripts/create-env.js"
   },
   "keywords": [
     "express",
@@ -21,6 +34,8 @@
   "author": "ÁGUA TWEZAH",
   "license": "MIT",
   "dependencies": {
+    "@google-cloud/vision": "^5.3.3",
+    "aws-sdk": "^2.1692.0",
     "axios": "^1.11.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
@@ -36,8 +51,10 @@
     "mongoose": "^8.0.3",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "node-tesseract-ocr": "^2.2.1",
     "nodemailer": "^6.9.7",
     "pdf-parse": "^1.1.1",
+    "pdf2pic": "^3.2.0",
     "sharp": "^0.34.3",
     "tesseract.js": "^6.0.1",
     "uuid": "^9.0.1"

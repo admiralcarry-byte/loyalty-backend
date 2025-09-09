@@ -128,8 +128,14 @@ class PayoutRequestController {
 
     const payoutRequests = await payoutRequestInstance.model.aggregate(pipeline);
 
+    // Map userDetails to user for frontend compatibility
+    const mappedPayoutRequests = payoutRequests.map(request => ({
+      ...request,
+      user: request.userDetails || null
+    }));
+
     return {
-      payoutRequests,
+      payoutRequests: mappedPayoutRequests,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

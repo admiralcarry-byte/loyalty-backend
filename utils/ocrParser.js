@@ -534,6 +534,14 @@ class OCRParser {
     const errors = [];
     const warnings = [];
     
+    // Check if this looks like a receipt vs other content
+    const isLikelyReceipt = this.isLikelyReceiptContent(data);
+    
+    if (!isLikelyReceipt) {
+      errors.push('This does not appear to be a receipt. Please upload an image of an actual purchase receipt, invoice, or bill.');
+      errors.push('Make sure the image contains: store name, purchase amount, date, and item details.');
+    }
+    
     // Check invoice number
     if (!data.invoiceNumber || data.invoiceNumber === 'UNKNOWN') {
       warnings.push('Invoice number not found - this is common for some receipt types');
@@ -574,6 +582,37 @@ class OCRParser {
       errors,
       warnings
     };
+  }
+
+  /**
+   * Check if the extracted data looks like a receipt
+   */
+  isLikelyReceiptContent(data) {
+    // Check for receipt-like patterns
+    const receiptIndicators = [
+      // Has a valid amount
+      data.amount && data.amount > 0,
+      
+      // Has a reasonable store name (not generic app terms)
+      data.storeName && 
+      data.storeName !== 'Unknown Store' && 
+      !data.storeName.toLowerCase().includes('update') &&
+      !data.storeName.toLowerCase().includes('notification') &&
+      !data.storeName.toLowerCase().includes('reward') &&
+      !data.storeName.toLowerCase().includes('level'),
+      
+      // Has reasonable confidence
+      data.confidence > 0.2,
+      
+      // Currency is not unknown
+      data.currency && data.currency !== 'UNKNOWN'
+    ];
+    
+    // Count how many indicators are present
+    const indicatorCount = receiptIndicators.filter(Boolean).length;
+    
+    // Consider it a receipt if at least 2 out of 4 indicators are present
+    return indicatorCount >= 2;
   }
 }
 

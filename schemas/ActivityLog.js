@@ -34,8 +34,7 @@ const activityLogSchema = new mongoose.Schema({
     default: null
   }
 }, {
-  timestamps: true,
-  collection: 'activity_logs'
+  timestamps: true
 });
 
 // Add indexes for better performance

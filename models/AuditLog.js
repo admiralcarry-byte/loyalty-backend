@@ -6,6 +6,12 @@ class AuditLog extends BaseModel {
     super(AuditLogSchema);
   }
 
+  // Static create method for backward compatibility
+  static async create(data) {
+    const instance = new AuditLog();
+    return await instance.create(data);
+  }
+
   async findByEntity(entityType, entityId) {
     return await AuditLogSchema.findByEntity(entityType, entityId);
   }
@@ -40,6 +46,12 @@ class AuditLog extends BaseModel {
 
   async getAuditLogStats() {
     return await AuditLogSchema.getAuditLogStats();
+  }
+
+  // Static createLog method for backward compatibility with existing code
+  static async createLog(data) {
+    const instance = new AuditLog();
+    return await instance.create(data);
   }
 }
 

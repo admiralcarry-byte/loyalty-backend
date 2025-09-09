@@ -104,6 +104,41 @@ app.use('/uploads', express.static('uploads'));
 
 // API routes
 const apiPrefix = process.env.API_PREFIX || '/api';
+
+// Add fallback routes for frontend compatibility (without /v1)
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/stores', storeRoutes);
+app.use('/api/campaigns', campaignRoutes);
+app.use('/api/sales', salesRoutes);
+app.use('/api/commissions', commissionRoutes);
+app.use('/api/commission-settings', commissionSettingsRoutes);
+app.use('/api/commission-rules', commissionRulesRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/points', pointsRoutes);
+app.use('/api/cashback', cashbackRoutes);
+app.use('/api/purchases', purchaseRoutes);
+app.use('/api/online-purchases', onlinePurchaseRoutes);
+app.use('/api/wallets', walletRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/export', exportRoutes);
+app.use('/api/health', healthRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/bulk', bulkRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/bank-details', bankDetailsRoutes);
+app.use('/api/influencer-levels', influencerLevelsRoutes);
+app.use('/api/ai-insights', aiInsightsRoutes);
+app.use('/api/payout-requests', payoutRequestRoutes);
+app.use('/api/activity-logs', activityLogsRoutes);
+app.use('/api/system-stats', systemStatsRoutes);
+app.use('/api/general-settings', generalSettingsRoutes);
+
+// Main API routes with version prefix
 app.use(`${apiPrefix}/auth`, authRoutes);
 app.use(`${apiPrefix}/users`, userRoutes);
 app.use(`${apiPrefix}/admin`, adminRoutes);

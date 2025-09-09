@@ -61,10 +61,7 @@ console.log('Allowed CORS origins:', allowedOrigins);
 app.use(cors());
 
 // Security middleware - after CORS
-app.use(helmet({
-  crossOriginEmbedderPolicy: false, // Disable CEP to avoid conflicts with CORS
-  contentSecurityPolicy: false // Disable CSP for now to avoid conflicts
-}));
+app.use(helmet());
 app.use(compression());
 
 // CORS test endpoint

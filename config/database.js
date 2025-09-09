@@ -13,15 +13,12 @@ class Database {
         console.log('✅ Already connected to MongoDB');
         return this.connection;
       }
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/aguatwezah_admin';
+      // const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/aguatwezah_admin';
+
+      const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://admiralcarry_db_user:hRbz6MRdicUoyLZk@loyalty-cloud.k62anvl.mongodb.net/aguatwezah_admin';
       
       console.log('🚀 Connecting to MongoDB...');
       console.log('📍 Connection URI:', mongoUri.replace(/\/\/.*@/, '//***:***@')); // Hide credentials in logs
-      
-      // Validate MongoDB URI
-      if (!mongoUri) {
-        throw new Error('MONGODB_URI environment variable is required');
-      }
       
       // Enhanced connection options for Atlas
       const connectionOptions = {
@@ -57,12 +54,6 @@ class Database {
       return this.connection;
     } catch (error) {
       console.error('❌ MongoDB connection failed:', error);
-      console.error('💡 Troubleshooting steps:');
-      console.error('   1. Check if MONGODB_URI environment variable is set correctly');
-      console.error('   2. Verify Atlas cluster is running and accessible');
-      console.error('   3. Check Atlas Network Access allows connections from Railway (0.0.0.0/0)');
-      console.error('   4. Verify database user credentials and permissions');
-      console.error('   5. Check if the database name exists in Atlas');
       this.isConnected = false;
       throw error;
     }

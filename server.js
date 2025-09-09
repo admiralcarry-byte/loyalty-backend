@@ -55,7 +55,7 @@ async function startServer() {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-      console.log(`📚 API Documentation: http://localhost:${PORT}${apiPrefix}/docs`);
+      console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
       console.log(`🗄️  Database: MongoDB`);
       console.log(`✅ Server startup complete!`);
     }).on('error', (err) => {
@@ -77,6 +77,7 @@ const corsOptions = {
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:8080',
+    'http://localhost:8081',
     'https://loyalty-frontend.netlify.app',
     'https://loyalty-admin.netlify.app'
   ],

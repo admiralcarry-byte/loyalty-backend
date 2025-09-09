@@ -58,6 +58,28 @@ const allowedOrigins = process.env.CORS_ORIGIN ?
 
 console.log('Allowed CORS origins:', allowedOrigins);
 
+// Manual CORS headers as backup
+app.use((req, res, next) => {
+  console.log('CORS middleware - Origin:', req.headers.origin);
+  console.log('CORS middleware - Method:', req.method);
+  
+  // Set CORS headers
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight request');
+    res.status(200).end();
+    return;
+  }
+  
+  next();
+});
+
+// CORS middleware as primary
 app.use(cors({
   origin: true, // Allow all origins
   credentials: true,
@@ -75,11 +97,19 @@ app.use(compression());
 
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {
+  console.log('CORS test endpoint hit - Origin:', req.headers.origin);
   res.json({ 
     message: 'CORS is working!', 
     origin: req.headers.origin,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    headers: req.headers
   });
+});
+
+// Simple preflight test
+app.options('/api/auth/login', (req, res) => {
+  console.log('OPTIONS preflight for /api/auth/login');
+  res.status(200).end();
 });
 
 // Rate limiting

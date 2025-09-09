@@ -62,7 +62,7 @@ const allowedOrigins = process.env.CORS_ORIGIN ?
 
 console.log('Allowed CORS origins:', allowedOrigins);
 
-app.use(cors());
+app.use(cors('*'));
 
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {

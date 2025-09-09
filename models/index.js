@@ -19,10 +19,11 @@ const ScanUpload = require('./ScanUpload');
 const BillingCompanyInvoice = require('./BillingCompanyInvoice');
 const BankDetails = require('./BankDetails');
 const InfluencerLevel = require('./InfluencerLevel');
-const AIInsights = require('./AIInsights');
 const PayoutRequest = require('./PayoutRequest');
 const ActivityLog = require('./ActivityLog');
 const GeneralSettings = require('./GeneralSettings');
+const CommissionRule = require('./CommissionRule');
+const CommissionSettings = require('./CommissionSettings');
 
 module.exports = {
   User,
@@ -46,8 +47,9 @@ module.exports = {
   BillingCompanyInvoice,
   BankDetails,
   InfluencerLevel,
-  AIInsights,
   PayoutRequest,
   ActivityLog,
-  GeneralSettings
+  GeneralSettings,
+  CommissionRule,
+  CommissionSettings
 }; 

@@ -17,7 +17,6 @@ const OnlinePurchase = require('./OnlinePurchase');
 const OnlinePurchaseItem = require('./OnlinePurchaseItem');
 const BankDetails = require('./BankDetails');
 const InfluencerLevel = require('./InfluencerLevel');
-const AIInsights = require('./AIInsights');
 
 module.exports = {
   User,
@@ -39,5 +38,4 @@ module.exports = {
   OnlinePurchaseItem,
   BankDetails,
   InfluencerLevel,
-  AIInsights
 }; 

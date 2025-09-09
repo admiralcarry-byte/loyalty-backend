@@ -6,7 +6,6 @@ const CampaignSeeder = require('./CampaignSeeder');
 const SaleSeeder = require('./SaleSeeder');
 const PointsTransactionSeeder = require('./PointsTransactionSeeder');
 const ActivityLogSeeder = require('./ActivityLogSeeder');
-const AIInsightsSeeder = require('./AIInsightsSeeder');
 const BankDetailsSeeder = require('./BankDetailsSeeder');
 const CommissionSeeder = require('./CommissionSeeder');
 const LoyaltyLevelSeeder = require('./LoyaltyLevelSeeder');
@@ -24,6 +23,8 @@ const BillingCompanyInvoiceSeeder = require('./BillingCompanyInvoiceSeeder');
 const InfluencerLevelSeeder = require('./InfluencerLevelSeeder');
 const PayoutRequestSeeder = require('./PayoutRequestSeeder');
 const GeneralSettingsSeeder = require('./GeneralSettingsSeeder');
+const CommissionRuleSeeder = require('./CommissionRuleSeeder');
+const CommissionSettingsSeeder = require('./CommissionSettingsSeeder');
 
 /**
  * Seeder Runner - Manages and executes all seeders
@@ -65,7 +66,10 @@ class SeederRunner extends BaseSeeder {
       AuditLogSeeder,
       NotificationSeeder,
       RefreshTokenSeeder,
-      AIInsightsSeeder
+      
+      // Commission management
+      CommissionRuleSeeder,
+      CommissionSettingsSeeder
     ];
   }
 
@@ -117,7 +121,8 @@ class SeederRunner extends BaseSeeder {
       console.log('   - Audit Logs (system changes)');
       console.log('   - Notifications (user notifications)');
       console.log('   - Refresh Tokens (session management)');
-      console.log('   - AI Insights (analytics insights)');
+      console.log('   - Commission Rules (commission calculation rules)');
+      console.log('   - Commission Settings (commission configuration)');
     } catch (error) {
       console.error('\n❌ Seeding process failed:', error.message);
       throw error;
@@ -131,7 +136,6 @@ class SeederRunner extends BaseSeeder {
       await this.connect();
       
       const collections = [
-        'ai_insights',
         'refreshtokens',
         'notifications',
         'auditlogs',
@@ -155,7 +159,9 @@ class SeederRunner extends BaseSeeder {
         'influencerlevels',
         'loyaltylevels',
         'settings',
-        'general_settings'
+        'general_settings',
+        'commissionrules',
+        'commissionsettings'
       ];
 
       for (const collectionName of collections) {
@@ -203,7 +209,8 @@ class SeederRunner extends BaseSeeder {
         { name: 'auditlogs', description: 'Audit logs' },
         { name: 'notifications', description: 'Notifications' },
         { name: 'refreshtokens', description: 'Refresh tokens' },
-        { name: 'ai_insights', description: 'AI insights' }
+        { name: 'commissionrules', description: 'Commission rules' },
+        { name: 'commissionsettings', description: 'Commission settings' }
       ];
 
       for (const collection of collections) {

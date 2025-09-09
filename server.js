@@ -33,7 +33,6 @@ const bulkRoutes = require('./routes/bulk');
 const dashboardRoutes = require('./routes/dashboard');
 const bankDetailsRoutes = require('./routes/bankDetails');
 const influencerLevelsRoutes = require('./routes/influencerLevels');
-const aiInsightsRoutes = require('./routes/aiInsights');
 const payoutRequestRoutes = require('./routes/payoutRequests');
 const activityLogsRoutes = require('./routes/activityLogs');
 const systemStatsRoutes = require('./routes/systemStats');
@@ -80,7 +79,7 @@ const corsOptions = {
     'http://localhost:8081',
     'https://loyalty-frontend.netlify.app',
     'https://loyalty-admin.netlify.app'
-  ],
+  ],   
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,
   optionsSuccessStatus: 200
@@ -185,8 +184,6 @@ app.use('/api/bank-details', bankDetailsRoutes);
 console.log('✅ Bank details routes loaded');
 app.use('/api/influencer-levels', influencerLevelsRoutes);
 console.log('✅ Influencer levels routes loaded');
-app.use('/api/ai-insights', aiInsightsRoutes);
-console.log('✅ AI insights routes loaded');
 app.use('/api/payout-requests', payoutRequestRoutes);
 console.log('✅ Payout request routes loaded');
 app.use('/api/activity-logs', activityLogsRoutes);
@@ -224,7 +221,6 @@ app.use(`${apiPrefix}/bulk`, bulkRoutes);
 app.use(`${apiPrefix}/dashboard`, dashboardRoutes);
 app.use(`${apiPrefix}/bank-details`, bankDetailsRoutes);
 app.use(`${apiPrefix}/influencer-levels`, influencerLevelsRoutes);
-app.use(`${apiPrefix}/ai-insights`, aiInsightsRoutes);
 app.use(`${apiPrefix}/payout-requests`, payoutRequestRoutes);
 app.use(`${apiPrefix}/activity-logs`, activityLogsRoutes);
 app.use(`${apiPrefix}/system-stats`, systemStatsRoutes);

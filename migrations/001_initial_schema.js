@@ -30,7 +30,6 @@ module.exports = {
     const BillingCompanyInvoice = require('../schemas/BillingCompanyInvoice');
     const BankDetails = require('../schemas/BankDetails');
     const InfluencerLevel = require('../schemas/InfluencerLevel');
-    const AIInsights = require('../schemas/AIInsights');
     const PayoutRequest = require('../schemas/PayoutRequest');
     const ActivityLog = require('../schemas/ActivityLog');
     const GeneralSettings = require('../schemas/GeneralSettings');
@@ -61,7 +60,6 @@ module.exports = {
       { name: 'billingcompanyinvoice', model: BillingCompanyInvoice },
       { name: 'bank_details', model: BankDetails },
       { name: 'influencerlevels', model: InfluencerLevel },
-      { name: 'ai_insights', model: AIInsights },
       { name: 'payoutrequests', model: PayoutRequest },
       { name: 'activitylogs', model: ActivityLog },
       { name: 'general_settings', model: GeneralSettings },

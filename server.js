@@ -52,13 +52,13 @@ database.connect().then(() => {
 });
 
 // CORS configuration - MUST come before other middleware
-const allowedOrigins = process.env.CORS_ORIGIN ? 
-  process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) : 
-  ['http://localhost:3000', 'http://localhost:8081', 'http://localhost:5173', 'https://loyalty-frontend.netlify.app'];
+// const allowedOrigins = process.env.CORS_ORIGIN ? 
+//   process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) : 
+//   ['http://localhost:3000', 'http://localhost:8081', 'http://localhost:5173', 'https://loyalty-frontend.netlify.app'];
 
-console.log('Allowed CORS origins:', allowedOrigins);
-
-app.use(cors());
+// console.log('Allowed CORS origins:', allowedOrigins);
+console.log("CORS");
+app.use(cors("*"));
 
 // Security middleware - after CORS
 app.use(helmet());

@@ -61,8 +61,8 @@ console.log("CORS");
 app.use(cors("*"));
 
 // Security middleware - after CORS
-app.use(helmet());
-app.use(compression());
+// app.use(helmet());
+// app.use(compression());
 
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {

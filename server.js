@@ -58,12 +58,11 @@ database.connect().then(() => {
 
 // console.log('Allowed CORS origins:', allowedOrigins);
 console.log("CORS");
-app.use(cors("*"));
-app.options("*", cors());
+app.use(cors());
 // Security middleware - after CORS
 // app.use(helmet());
 // app.use(compression());
-
+console.log("I am here");
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {
   res.json({ 

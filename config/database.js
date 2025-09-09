@@ -14,7 +14,7 @@ class Database {
         return this.connection;
       }
 
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/aguatwezah_admin';
+      const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://admiralcarry_db_user:hRbz6MRdicUoyLZk@loyalty-cloud.k62anvl.mongodb.net/aguatwezah_admin';
       
       console.log('🚀 Connecting to MongoDB...');
       console.log('📍 Connection URI:', mongoUri.replace(/\/\/.*@/, '//***:***@')); // Hide credentials in logs

@@ -51,18 +51,27 @@ database.connect().then(() => {
   process.exit(1);
 });
 
-// Security middleware
-app.use(helmet());
-app.use(compression());
-
-// CORS configuration
+// CORS configuration - MUST come before other middleware
 const allowedOrigins = process.env.CORS_ORIGIN ? 
   process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) : 
   ['http://localhost:3000', 'http://localhost:8081', 'http://localhost:5173', 'https://loyalty-frontend.netlify.app'];
 
 console.log('Allowed CORS origins:', allowedOrigins);
 
-app.use(cors('*'));
+app.use(cors({
+  origin: true, // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200
+}));
+
+// Security middleware - after CORS
+app.use(helmet({
+  crossOriginEmbedderPolicy: false, // Disable CEP to avoid conflicts with CORS
+  contentSecurityPolicy: false // Disable CSP for now to avoid conflicts
+}));
+app.use(compression());
 
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {

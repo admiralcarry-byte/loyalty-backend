@@ -59,7 +59,7 @@ database.connect().then(() => {
 // console.log('Allowed CORS origins:', allowedOrigins);
 console.log("CORS");
 app.use(cors("*"));
-
+app.options("*", cors());
 // Security middleware - after CORS
 // app.use(helmet());
 // app.use(compression());

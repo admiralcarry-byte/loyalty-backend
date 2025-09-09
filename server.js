@@ -62,29 +62,7 @@ const allowedOrigins = process.env.CORS_ORIGIN ?
 
 console.log('Allowed CORS origins:', allowedOrigins);
 
-app.use(cors({
-  origin: function (origin, callback) {
-    console.log('CORS request from origin:', origin);
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      console.log('No origin provided, allowing request');
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('Origin allowed:', origin);
-      callback(null, true);
-    } else {
-      console.log('Origin not allowed:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
-}));
+app.use(cors());
 
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {

@@ -47,16 +47,26 @@ const PORT = process.env.PORT || 5000;
 async function startServer() {
   try {
     console.log('🔄 Starting database connection...');
+    console.log('📍 Environment:', process.env.NODE_ENV || 'development');
+    console.log('📍 Port:', PORT);
+    
+    // Check if MONGODB_URI is set
+    if (!process.env.MONGODB_URI) {
+      console.error('❌ MONGODB_URI environment variable is not set!');
+      console.error('💡 Please set MONGODB_URI in your Railway environment variables');
+      process.exit(1);
+    }
+    
     await database.connect();
     console.log('✅ MongoDB connected successfully');
     
     console.log('🔄 Starting server...');
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-      console.log(`📚 API Documentation: http://localhost:${PORT}${apiPrefix}/docs`);
-      console.log(`🗄️  Database: MongoDB`);
+      console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
+      console.log(`🗄️  Database: MongoDB Atlas`);
       console.log(`✅ Server startup complete!`);
     }).on('error', (err) => {
       console.error('❌ Server startup error:', err);
@@ -64,6 +74,7 @@ async function startServer() {
     });
   } catch (err) {
     console.error('❌ Failed to start server:', err);
+    console.error('💡 Check your MONGODB_URI and Atlas network access settings');
     process.exit(1);
   }
 }

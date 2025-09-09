@@ -538,8 +538,32 @@ class OCRParser {
     const isLikelyReceipt = this.isLikelyReceiptContent(data);
     
     if (!isLikelyReceipt) {
-      errors.push('This does not appear to be a receipt. Please upload an image of an actual purchase receipt, invoice, or bill.');
-      errors.push('Make sure the image contains: store name, purchase amount, date, and item details.');
+      // Check what specific elements are missing to provide more targeted error messages
+      const missingElements = [];
+      
+      if (!data.amount || data.amount <= 0) {
+        missingElements.push('purchase amount');
+      }
+      
+      if (!data.storeName || data.storeName === 'Unknown Store' || 
+          data.storeName.toLowerCase().includes('update') ||
+          data.storeName.toLowerCase().includes('notification') ||
+          data.storeName.toLowerCase().includes('reward') ||
+          data.storeName.toLowerCase().includes('level')) {
+        missingElements.push('store name');
+      }
+      
+      if (data.confidence <= 0.2) {
+        missingElements.push('clear readable text');
+      }
+      
+      if (missingElements.length > 0) {
+        errors.push(`This does not appear to be a receipt. Missing: ${missingElements.join(', ')}.`);
+        errors.push('Please upload an actual purchase receipt, invoice, or bill with clear text.');
+      } else {
+        errors.push('This does not appear to be a receipt. Please upload an image of an actual purchase receipt, invoice, or bill.');
+        errors.push('Make sure the image contains: store name, purchase amount, date, and item details.');
+      }
     }
     
     // Check invoice number

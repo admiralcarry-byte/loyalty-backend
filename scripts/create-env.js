@@ -47,7 +47,12 @@ RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=100
 
 # CORS Configuration
+# For local development:
 CORS_ORIGIN=http://localhost:3000
+# For production with Netlify frontend:
+# CORS_ORIGIN=https://loyalty-frontend.netlify.app
+# For multiple origins (comma-separated):
+# CORS_ORIGIN=http://localhost:3000,https://loyalty-frontend.netlify.app
 
 # Logging
 LOG_LEVEL=info

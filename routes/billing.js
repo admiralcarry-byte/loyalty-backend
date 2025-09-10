@@ -18,9 +18,7 @@ const {
 } = require('../models');
 const { verifyToken, requireManager } = require('../middleware/auth');
 const billingCompanyService = require('../services/billingCompanyService');
-const ocrParser = require('../utils/ocrParser');
-const advancedOCR = require('../utils/advancedOCR');
-const ultimateOCR = require('../utils/ultimateOCR');
+const fastOCR = require('../utils/fastOCR');
 const reconciliationService = require('../services/reconciliationService');
 
 const router = express.Router();
@@ -692,35 +690,18 @@ router.post('/upload-receipt', [
       });
     }
 
-    // Process receipt with Ultimate OCR System
+    // Process receipt with Fast OCR System
     let ocrResult;
     try {
-      // Determine optimal processing mode based on file characteristics
-      const recommendedMode = ultimateOCR.getRecommendedMode(req.file.path);
-      console.log(`Starting Ultimate OCR processing in ${recommendedMode} mode...`);
-      
-      ocrResult = await ultimateOCR.processReceipt(req.file.path, recommendedMode);
-      console.log(`Ultimate OCR completed with method: ${ocrResult.extractionMethod}, technique: ${ocrResult.technique}`);
+      console.log('Starting Fast OCR processing...');
+      ocrResult = await fastOCR.processReceipt(req.file.path);
+      console.log(`Fast OCR completed with method: ${ocrResult.extractionMethod}`);
     } catch (ocrError) {
-      console.error('Ultimate OCR processing error:', ocrError);
-      // Fallback to advanced OCR if ultimate fails
-      try {
-        console.log('Falling back to advanced OCR...');
-        ocrResult = await advancedOCR.processReceipt(req.file.path);
-      } catch (advancedError) {
-        console.error('Advanced OCR fallback failed:', advancedError);
-        // Final fallback to standard OCR
-        try {
-          console.log('Falling back to standard OCR...');
-          ocrResult = await ocrParser.processReceipt(req.file.path);
-        } catch (fallbackError) {
-          console.error('All OCR methods failed:', fallbackError);
-          return res.status(500).json({
-            success: false,
-            error: 'OCR processing failed. Please try again with a different image.'
-          });
-        }
-      }
+      console.error('Fast OCR processing error:', ocrError);
+      return res.status(500).json({
+        success: false,
+        error: 'OCR processing failed. Please try again with a different image.'
+      });
     }
 
     if (!ocrResult.success) {
@@ -730,18 +711,8 @@ router.post('/upload-receipt', [
       });
     }
 
-    // Validate extracted data using appropriate validator
-    let validation;
-    if (['maximum', 'accurate', 'balanced', 'fast'].includes(ocrResult.extractionMethod)) {
-      // Use advanced validation for ultimate OCR results
-      validation = advancedOCR.validateAdvancedExtractedData(ocrResult.parsedData);
-    } else if (ocrResult.extractionMethod === 'advanced') {
-      // Use advanced validation for advanced OCR results
-      validation = advancedOCR.validateAdvancedExtractedData(ocrResult.parsedData);
-    } else {
-      // Use standard validation for fallback OCR results
-      validation = ocrParser.validateExtractedData(ocrResult.parsedData);
-    }
+    // Validate extracted data using fast OCR validator
+    const validation = fastOCR.validateExtractedData(ocrResult.parsedData);
     
     if (!validation.isValid) {
       return res.status(400).json({
@@ -752,7 +723,7 @@ router.post('/upload-receipt', [
         extractedData: ocrResult.parsedData,
         extractedText: ocrResult.extractedText,
         confidence: ocrResult.confidence,
-        technique: ocrResult.technique || 'standard'
+        technique: ocrResult.extractionMethod || 'fast'
       });
     }
 
@@ -809,15 +780,10 @@ router.post('/upload-receipt', [
         status: 'provisional',
         warnings: validation.warnings || [],
         ocrDetails: {
-          technique: ocrResult.technique || 'standard',
-          extractionMethod: ocrResult.extractionMethod || 'standard',
-          processingTime: ocrResult.processingTime,
-          timestamp: ocrResult.timestamp,
-          mode: ocrResult.mode || 'balanced'
-        },
-        ensembleDetails: ocrResult.ensembleDetails || null,
-        structureDetails: ocrResult.structureDetails || null,
-        processingDetails: ocrResult.processingDetails || null
+          technique: ocrResult.extractionMethod || 'fast',
+          extractionMethod: ocrResult.extractionMethod || 'fast',
+          processingTime: ocrResult.processingTime
+        }
       }
     });
   } catch (error) {
@@ -840,7 +806,22 @@ router.post('/upload-receipt', [
 // @access  Private (Manager+)
 router.get('/ocr-status', async (req, res) => {
   try {
-    const status = ultimateOCR.getSystemStatus();
+    const status = {
+      engines: [{ name: 'fast-ocr', enabled: true, weight: 1.0 }],
+      processingModes: ['fast'],
+      capabilities: {
+        fastOCR: true,
+        multiLanguage: true,
+        caching: false,
+        parallelProcessing: false
+      },
+      performance: {
+        maxWorkers: 1,
+        cacheEnabled: false,
+        supportedFormats: fastOCR.getSupportedFormats(),
+        maxFileSize: fastOCR.getMaxFileSize()
+      }
+    };
     res.json({
       success: true,
       data: status

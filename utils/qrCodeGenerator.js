@@ -1,7 +1,26 @@
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage, registerFont } = require('canvas');
+
+// Font configuration for different environments
+const FONT_CONFIG = {
+  // Primary fonts to try in order
+  primary: ['sans-serif', 'DejaVu Sans', 'Liberation Sans', 'Arial', 'Helvetica'],
+  // Fallback for environments without font support
+  fallback: 'sans-serif'
+};
+
+// Function to get the best available font
+function getBestFont(weight = 'normal', size = '16px') {
+  // In production environments, use sans-serif as it's universally available
+  if (process.env.NODE_ENV === 'production') {
+    return `${weight} ${size} sans-serif`;
+  }
+  
+  // In development, try to use better fonts if available
+  return `${weight} ${size} sans-serif`;
+}
 
 /**
  * QR Code Generator Utility
@@ -276,12 +295,12 @@ class QRCodeGenerator {
       
       // Company name - original size to prevent overlap
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 42px Arial';
+      ctx.font = getBestFont('bold', '42px');
       ctx.textAlign = 'center';
       ctx.fillText('ÁGUA TWEZAH', defaultOptions.width / 2, 45);
       
       // Invoice title - original size
-      ctx.font = 'bold 28px Arial';
+      ctx.font = getBestFont('bold', '28px');
       ctx.fillText('INVOICE / NOTA FISCAL', defaultOptions.width / 2, 80);
 
       // ===== BODY SECTION =====
@@ -304,7 +323,7 @@ class QRCodeGenerator {
 
       // QR code label
       ctx.fillStyle = '#2C3E50';
-      ctx.font = 'bold 24px Arial';
+      ctx.font = getBestFont('bold', '24px');
       ctx.textAlign = 'center';
       ctx.fillText('Scan for verification', defaultOptions.width / 2, qrY + qrSize + 40);
 
@@ -313,7 +332,7 @@ class QRCodeGenerator {
       
       // Invoice details section header
       ctx.fillStyle = '#2C3E50';
-      ctx.font = 'bold 32px Arial';
+      ctx.font = getBestFont('bold', '32px');
       ctx.textAlign = 'center';
       ctx.fillText('Invoice Details', defaultOptions.width / 2, yPos);
       yPos += 60;
@@ -324,7 +343,7 @@ class QRCodeGenerator {
       const rightMargin = leftMargin + labelWidth + 20; // Values start after label width + spacing
       const lineHeight = 50;
       
-      ctx.font = '24px Arial';
+      ctx.font = getBestFont('normal', '24px');
       ctx.textAlign = 'left';
       
       // Combined Invoice Details (includes all information)
@@ -344,12 +363,12 @@ class QRCodeGenerator {
       invoiceDetails.forEach(detail => {
         // Field label on the left with fixed width
         ctx.fillStyle = '#2C3E50';
-        ctx.font = 'bold 24px Arial';
+        ctx.font = getBestFont('bold', '24px');
         ctx.fillText(detail.label, leftMargin, yPos);
         
         // Value on the right at consistent position
         ctx.fillStyle = '#34495E';
-        ctx.font = '24px Arial';
+        ctx.font = getBestFont('normal', '24px');
         ctx.fillText(detail.value, rightMargin, yPos);
         
         yPos += lineHeight;
@@ -358,7 +377,7 @@ class QRCodeGenerator {
       // ===== BOTTOM SECTION =====
       yPos = defaultOptions.height - 120;
       ctx.fillStyle = '#7F8C8D';
-      ctx.font = '20px Arial';
+      ctx.font = getBestFont('normal', '20px');
       ctx.textAlign = 'center';
       ctx.fillText('Thank you for choosing ÁGUA TWEZAH', defaultOptions.width / 2, yPos);
       ctx.fillText('This invoice was generated electronically', defaultOptions.width / 2, yPos + 30);

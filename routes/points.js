@@ -354,8 +354,8 @@ router.get('/user/:userId', [verifyToken, requireManager], async (req, res) => {
 // @desc    Get points statistics overview
 // @access  Private (Manager+) - Temporarily disabled for testing
 router.get('/stats/overview', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     // Get points stats using PointsTransaction model
@@ -378,7 +378,10 @@ router.get('/stats/overview', [
 // @route   GET /api/points/top-earners
 // @desc    Get top points earners
 // @access  Private (Manager+)
-router.get('/top-earners', [verifyToken, requireManager], async (req, res) => {
+router.get('/top-earners', [
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
+], async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 

@@ -9,8 +9,8 @@ const router = express.Router();
 // @desc    Get all users with pagination and filters
 // @access  Private (Admin/Manager)
 router.get('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const result = await userController.getAllUsers(req);
@@ -32,8 +32,8 @@ router.get('/', [
 // @desc    Get influencer performance data
 // @access  Private (Admin/Manager)
 router.get('/influencer-performance', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const performanceData = await userController.getInfluencerPerformance();
@@ -74,8 +74,8 @@ router.get('/:id', [verifyToken, requireManager], async (req, res) => {
 // @desc    Create new user
 // @access  Private (Admin) - Temporarily disabled for testing
 router.post('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireAdmin,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireAdmin,  // Re-enabled authorization
   body('username').trim().isLength({ min: 3, max: 50 }).withMessage('Username must be between 3 and 50 characters'),
   body('email').isEmail().normalizeEmail().withMessage('Invalid email format. Please enter a valid email address (e.g., user@example.com)'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
@@ -146,8 +146,8 @@ router.post('/', [
 // @desc    Update user
 // @access  Private (Admin/Manager) - Temporarily disabled for testing
 router.put('/:id', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
   body('email').optional().isEmail().normalizeEmail().withMessage('Please enter a valid email'),
   body('first_name').optional().trim().isLength({ min: 2 }).withMessage('First name must be at least 2 characters'),
   body('last_name').optional({ checkFalsy: true }).trim().isLength({ min: 2 }).withMessage('Last name must be at least 2 characters'),
@@ -177,8 +177,8 @@ router.put('/:id', [
 // @desc    Delete user
 // @access  Private (Admin) - Temporarily disabled for testing
 router.delete('/:id', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireAdmin,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireAdmin,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const { id } = req.params;
@@ -209,6 +209,64 @@ router.get('/stats/overview', [verifyToken, requireManager], async (req, res) =>
     });
   } catch (error) {
     res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/users/stats
+// @desc    Get user statistics for dashboard cards
+// @access  Private (Manager+) - Temporarily disabled for testing
+router.get('/stats', [
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
+], async (req, res) => {
+  try {
+    const userStats = await userController.getUserStats();
+    
+    res.json({
+      success: true,
+      data: userStats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/users/:id/reset-password
+// @desc    Admin reset user password
+// @access  Private (Admin)
+router.post('/:id/reset-password', [
+  verifyToken,
+  requireAdmin,
+  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    
+    const result = await userController.resetUserPassword(id, newPassword);
+    
+    res.json({
+      success: true,
+      message: 'Password reset successfully',
+      data: result
+    });
+  } catch (error) {
+    res.status(400).json({
       success: false,
       error: error.message
     });

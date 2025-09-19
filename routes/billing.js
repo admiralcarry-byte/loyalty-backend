@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const { 
   Sale, 
   User, 
@@ -20,6 +21,8 @@ const { verifyToken, requireManager } = require('../middleware/auth');
 const billingCompanyService = require('../services/billingCompanyService');
 const fastOCR = require('../utils/fastOCR');
 const reconciliationService = require('../services/reconciliationService');
+const qrCodeGenerator = require('../utils/qrCodeGenerator');
+const qrCodeReader = require('../utils/qrCodeReader');
 
 const router = express.Router();
 
@@ -278,12 +281,20 @@ router.post('/invoices/:id/refund', [
       await cashbackModel.create(transactionData);
 
       // Create notification
-      await Notification.createUserNotification(
-        sale.user_id,
-        'Refund Processed',
-        `R$ ${refund_amount.toFixed(2)} has been refunded to your wallet for sale #${sale.id}`,
-        'refund_processed'
-      );
+      const notificationModel = new Notification();
+      await notificationModel.create({
+        title: 'Refund Processed',
+        message: `R$ ${refund_amount.toFixed(2)} has been refunded to your wallet for sale #${sale.id}`,
+        type: 'success',
+        category: 'billing',
+        priority: 'normal',
+        recipients: [{
+          user: sale.user_id,
+          delivery_status: 'delivered'
+        }],
+        created_by: sale.user_id, // Add required created_by field
+        created_at: new Date()
+      });
     }
 
     res.json({
@@ -450,16 +461,18 @@ router.get('/user/:userId', [
   }
 });
 
-// @route   POST /api/billing/generate-invoice
-// @desc    Generate invoice for a sale
+// @route   POST /api/billing/create-invoice
+// @desc    Create invoice with QR code for new purchase
 // @access  Private (Manager+)
-router.post('/generate-invoice', [
+router.post('/create-invoice', [
   verifyToken,
   requireManager,
-  body('sale_id').isInt().withMessage('Sale ID is required'),
-  body('invoice_number').optional().isString(),
-  body('due_date').optional().isISO8601().toDate(),
-  body('notes').optional().isString()
+  body('purchaserName').isString().withMessage('Purchaser name is required'),
+  body('phoneNumber').optional().isString(),
+  body('email').optional().isEmail(),
+  body('litersPurchased').isFloat({ min: 0.01 }).withMessage('Liters purchased must be greater than 0'),
+  body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
+  body('storeNumber').optional().isString()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -471,46 +484,304 @@ router.post('/generate-invoice', [
       });
     }
 
-    const { sale_id, invoice_number, due_date, notes } = req.body;
+    const { 
+      purchaserName, 
+      phoneNumber, 
+      email, 
+      litersPurchased, 
+      amount, 
+      storeNumber 
+    } = req.body;
 
-    // Get sale by ID using Sale model
-    const sale = await Sale.findById(sale_id);
-    if (!sale) {
-      return res.status(404).json({
-        success: false,
-        error: 'Sale not found'
+    // Validate store number if provided
+    if (storeNumber) {
+      const storeModel = new Store();
+      const existingStore = await storeModel.findByCode(storeNumber);
+      
+      if (!existingStore) {
+        return res.status(400).json({
+          success: false,
+          error: 'No such store exists',
+          details: `Store number "${storeNumber}" was not found in the database`
+        });
+      }
+    }
+
+    // Generate QR code data (store number hash)
+    const storeNumberHash = Buffer.from(storeNumber || 'default-store').toString('base64');
+    
+    // Create invoice data with full datetime
+    const now = new Date();
+    const invoiceData = {
+      purchaserName,
+      phoneNumber: phoneNumber || '',
+      email: email || '',
+      litersPurchased: parseFloat(litersPurchased),
+      amount: parseFloat(amount),
+      storeNumber: storeNumber || '',
+      storeNumberHash,
+      dateGenerated: now.toISOString(),
+      dateGeneratedFormatted: now.toLocaleDateString('en-GB') + ' - ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      qrCodeData: storeNumberHash
+    };
+
+    // Store purchase information in database
+    // Check if user already exists (by phone or email)
+    let userId = null;
+    if (phoneNumber || email) {
+      const userModel = new User();
+      let existingUser = null;
+      
+      // Try to find by email first
+      if (email) {
+        existingUser = await userModel.findByEmail(email);
+      }
+      
+      // If not found by email, try to find by phone
+      if (!existingUser && phoneNumber) {
+        existingUser = await userModel.findOne({ phone: phoneNumber });
+      }
+      
+      if (existingUser) {
+        userId = existingUser.id;
+      }
+    }
+
+    // If user doesn't exist, create a new user record
+    if (!userId) {
+      const userModel = new User();
+      
+      // Generate a unique username and password for the customer
+      const username = `customer_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      const password = Math.random().toString(36).substr(2, 8); // Random password
+      const password_hash = await bcrypt.hash(password, 10);
+      
+      const newUser = await userModel.create({
+        username: username,
+        first_name: purchaserName.split(' ')[0] || purchaserName,
+        last_name: purchaserName.split(' ').slice(1).join(' ') || '',
+        email: email || `customer_${Date.now()}@example.com`,
+        phone: phoneNumber || '',
+        password_hash: password_hash,
+        role: 'customer',
+        status: 'active',
+        created_at: new Date()
+      });
+      userId = newUser.id;
+    }
+
+    // Calculate cashback (2% base rate per liter)
+    const baseCashbackRate = 2.0; // 2% per liter
+    const cashbackEarned = (litersPurchased * baseCashbackRate);
+
+    // Get current commission settings
+    const CommissionSettings = require('../models/CommissionSettings');
+    const commissionSettingsModel = new CommissionSettings();
+    const commissionSettings = await commissionSettingsModel.model.getCurrentSettings();
+    
+    // Calculate commission based on settings (using lead tier as default for billing)
+    const baseCommissionRate = commissionSettings.base_commission_rate || 5.0;
+    const commissionAmount = (amount * baseCommissionRate) / 100;
+
+    // Create sale record
+    const saleModel = new Sale();
+    const saleData = {
+      user_id: userId,
+      quantity: litersPurchased,
+      subtotal: amount,  // Set subtotal to match total_amount for simple invoices
+      total_amount: amount,
+      currency: 'BRL',
+      order_status: 'completed',
+      status: 'completed',
+      payment_method: 'cash',
+      payment_status: 'paid',  // Set payment status to 'paid' for cash transactions
+      cashback_earned: cashbackEarned,  // Calculate cashback based on liters purchased
+      commission: {
+        amount: commissionAmount,  // Calculate commission based on total amount
+        rate: baseCommissionRate,  // Commission rate percentage
+        calculated: true  // Mark as calculated
+      },
+      // Invoice-specific fields
+      purchaser_name: purchaserName,
+      purchaser_phone: phoneNumber || '',
+      purchaser_email: email || '',
+      liters_purchased: litersPurchased,
+      store_number: storeNumber || '',
+      store_number_hash: storeNumberHash,
+      qr_code_data: storeNumberHash,
+      created_at: new Date(),
+      notes: `Invoice generated with QR code: ${storeNumberHash}`
+    };
+
+    const sale = await saleModel.create(saleData);
+
+    // Generate invoice as image (PNG/JPG) instead of HTML
+    const imageResult = await qrCodeGenerator.generateInvoiceImage({
+      ...invoiceData,
+      invoiceId: sale.id,
+      saleId: sale.id
+    });
+
+    // Create notification for user
+    if (userId) {
+      const notificationModel = new Notification();
+      await notificationModel.create({
+        title: 'Invoice Generated',
+        message: `Invoice has been generated for your purchase of ${litersPurchased} liters`,
+        type: 'success',
+        category: 'billing',
+        priority: 'normal',
+        recipients: [{
+          user: userId,
+          delivery_status: 'delivered'
+        }],
+        created_by: userId, // Add required created_by field
+        created_at: new Date()
       });
     }
 
-    // Update sale with invoice information
-    const updateData = {
-      notes: `Invoice #${invoice_number || `INV-${sale.id}`} generated. Due: ${due_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}. ${notes || ''}`
-    };
-
-    await Sale.updateById(sale_id, updateData);
-
-    // Create notification for user
-    await Notification.createUserNotification(
-      sale.user_id,
-      'Invoice Generated',
-      `Invoice #${invoice_number || `INV-${sale.id}`} has been generated for your purchase`,
-      'invoice_generated'
-    );
-
     res.json({
       success: true,
-      message: 'Invoice generated successfully',
+      message: 'Invoice created successfully',
       data: {
-        sale_id,
-        invoice_number: invoice_number || `INV-${sale.id}`,
-        due_date: due_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        invoiceId: sale.id,
+        ...invoiceData,
+        userId,
+        saleId: sale.id,
+        imageFile: imageResult.success ? {
+          filename: imageResult.filename,
+          filePath: imageResult.filePath,
+          format: imageResult.format,
+          width: imageResult.width,
+          height: imageResult.height
+        } : null,
+        qrCode: imageResult.qrCode
       }
     });
   } catch (error) {
-    console.error('Generate invoice error:', error);
+    console.error('Create invoice error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to generate invoice'
+      error: 'Failed to create invoice'
+    });
+  }
+});
+
+// @route   POST /api/billing/verify-purchase
+// @desc    Verify purchase data against database
+// @access  Private (Manager+)
+router.post('/verify-purchase', [
+  verifyToken,
+  requireManager,
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('phoneNumber').optional().isString(),
+  body('litersPurchased').isFloat({ min: 0.01 }).withMessage('Liters purchased must be greater than 0'),
+  body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
+  body('storeNumber').optional().isString()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    const { 
+      email, 
+      phoneNumber, 
+      litersPurchased, 
+      amount, 
+      storeNumber 
+    } = req.body;
+
+    // Search for matching purchase in database
+    const saleModel = new Sale();
+    const searchCriteria = {
+      liters_purchased: parseFloat(litersPurchased),
+      total_amount: parseFloat(amount)
+    };
+    
+    console.log('Initial search criteria:', searchCriteria);
+
+    // First try to find sales by amount and liters only
+    console.log('Searching by amount and liters only...');
+    let matchingSales = await saleModel.findAll(searchCriteria);
+    console.log('Sales found by amount and liters:', matchingSales.length);
+    
+    // If no exact match, try with flexible email matching
+    if (matchingSales.length === 0 && email) {
+      console.log('No exact match found, trying flexible email search...');
+      const emailRegex = new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const flexibleCriteria = {
+        ...searchCriteria,
+        purchaser_email: { $regex: emailRegex }
+      };
+      console.log('Flexible search criteria:', flexibleCriteria);
+      matchingSales = await saleModel.findAll(flexibleCriteria);
+      console.log('Sales found with flexible email:', matchingSales.length);
+    }
+    
+    // If still no match, try with user lookup
+    if (matchingSales.length === 0 && email) {
+      console.log('Trying user lookup...');
+      const userModel = new User();
+      const user = await userModel.findOne({ email: email });
+      if (user) {
+        const userCriteria = {
+          ...searchCriteria,
+          user_id: user.id
+        };
+        console.log('User search criteria:', userCriteria);
+        matchingSales = await saleModel.findAll(userCriteria);
+        console.log('Sales found by user_id:', matchingSales.length);
+      }
+    }
+
+    // Add phone criteria if still no match
+    if (matchingSales.length === 0 && phoneNumber) {
+      console.log('Trying phone number search...');
+      const userModel = new User();
+      const user = await userModel.findOne({ phone: phoneNumber });
+      if (user) {
+        const phoneCriteria = {
+          ...searchCriteria,
+          user_id: user.id
+        };
+        console.log('Phone search criteria:', phoneCriteria);
+        matchingSales = await saleModel.findAll(phoneCriteria);
+        console.log('Sales found by phone user_id:', matchingSales.length);
+      } else {
+        const phoneCriteria = {
+          ...searchCriteria,
+          purchaser_phone: phoneNumber
+        };
+        console.log('Phone purchaser search criteria:', phoneCriteria);
+        matchingSales = await saleModel.findAll(phoneCriteria);
+        console.log('Sales found by purchaser_phone:', matchingSales.length);
+      }
+    }
+
+    const found = matchingSales.length > 0;
+
+    res.json({
+      success: true,
+      found,
+      data: {
+        matchingPurchases: matchingSales.length,
+        searchCriteria,
+        message: found 
+          ? `Found ${matchingSales.length} matching purchase(s) in database`
+          : 'No matching purchases found in database'
+      }
+    });
+  } catch (error) {
+    console.error('Verify purchase error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to verify purchase data'
     });
   }
 });
@@ -634,20 +905,41 @@ router.get('/external-invoices/:invoiceId', [verifyToken, requireManager], async
 // @desc    Upload and process receipt using OCR
 // @access  Private (Manager+)
 router.post('/upload-receipt', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
-  upload.single('receipt'),
-  body('userId').isMongoId().withMessage('Valid user ID is required'),
-  body('storeId').isMongoId().withMessage('Valid store ID is required'),
-  body('purchaseDate').optional().isISO8601().toDate()
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
+  upload.single('receipt')
 ], async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    // Debug: Log what we received
+    console.log('Received request body:', req.body);
+    console.log('Received file:', req.file ? req.file.originalname : 'No file');
+    
+    // Manual validation after multer processing
+    let { userId, storeId, purchaseDate } = req.body;
+    
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
       return res.status(400).json({
         success: false,
         error: 'Validation failed',
-        details: errors.array()
+        details: [{
+          type: 'field',
+          msg: 'User ID is required',
+          path: 'userId',
+          location: 'body'
+        }]
+      });
+    }
+    
+    if (!storeId || typeof storeId !== 'string' || storeId.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: [{
+          type: 'field',
+          msg: 'Store ID is required',
+          path: 'storeId',
+          location: 'body'
+        }]
       });
     }
 
@@ -658,37 +950,35 @@ router.post('/upload-receipt', [
       });
     }
 
-    const { userId, storeId, purchaseDate } = req.body;
-
-    // Verify user and store exist
-    const userModel = new User();
-    const storeModel = new Store();
-    
-    let user, store;
-    try {
-      user = await userModel.findById(userId);
-      store = await storeModel.findById(storeId);
-    } catch (dbError) {
-      console.error('Database query error:', dbError);
-      return res.status(500).json({
+    // We'll determine user and store after QR code analysis
+    // For now, just validate that we have the required data
+    if (!userId || !storeId) {
+      return res.status(400).json({
         success: false,
-        error: 'Database connection error. Please try again.'
+        error: 'Missing required data',
+        details: 'User ID and Store ID are required for receipt processing'
       });
     }
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
-
-    if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'Store not found'
-      });
-    }
+    // Convert formatted date string back to Date object for database storage
+    const parseFormattedDate = (dateString) => {
+      if (!dateString) return null;
+      if (dateString instanceof Date) return dateString;
+      
+      // Parse format: "17/09/2025 - 11:08 PM"
+      const match = dateString.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}) - (\d{1,2}):(\d{2}) (AM|PM)/);
+      if (match) {
+        const [, day, month, year, hour, minute, ampm] = match;
+        let hour24 = parseInt(hour);
+        if (ampm === 'PM' && hour24 !== 12) hour24 += 12;
+        if (ampm === 'AM' && hour24 === 12) hour24 = 0;
+        
+        return new Date(year, month - 1, day, hour24, parseInt(minute));
+      }
+      
+      // Fallback to regular Date parsing
+      return new Date(dateString);
+    };
 
     // Process receipt with Fast OCR System
     let ocrResult;
@@ -696,6 +986,8 @@ router.post('/upload-receipt', [
       console.log('Starting Fast OCR processing...');
       ocrResult = await fastOCR.processReceipt(req.file.path);
       console.log(`Fast OCR completed with method: ${ocrResult.extractionMethod}`);
+      console.log('Extracted data:', JSON.stringify(ocrResult.parsedData, null, 2));
+      console.log('Raw extracted text:', ocrResult.extractedText);
     } catch (ocrError) {
       console.error('Fast OCR processing error:', ocrError);
       return res.status(500).json({
@@ -709,6 +1001,23 @@ router.post('/upload-receipt', [
         success: false,
         error: `OCR processing failed: ${ocrResult.error}`
       });
+    }
+
+    // Process QR code extraction
+    let qrResult;
+    try {
+      console.log('Starting QR code processing...');
+      qrResult = await qrCodeReader.processReceiptQRCode(req.file.path);
+      console.log(`QR code processing completed with method: ${qrResult.extractionMethod}`);
+      console.log('QR code data:', JSON.stringify(qrResult.extractedFields, null, 2));
+    } catch (qrError) {
+      console.error('QR code processing error:', qrError);
+      // Don't fail the entire process if QR code extraction fails
+      qrResult = {
+        success: false,
+        error: qrError.message,
+        extractedFields: {}
+      };
     }
 
     // Validate extracted data using fast OCR validator
@@ -727,6 +1036,136 @@ router.post('/upload-receipt', [
       });
     }
 
+    // Find user and store based on QR code data
+    const userModel = new User();
+    const storeModel = new Store();
+    
+    let user, store;
+    try {
+      // Try to find user by QR code data first
+      if (qrResult.success && qrResult.extractedFields.customerName) {
+        // Try to find user by name (from QR code)
+        const customerName = qrResult.extractedFields.customerName;
+        const nameParts = customerName.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ');
+        
+        user = await userModel.model.findOne({
+          first_name: firstName,
+          last_name: lastName
+        });
+        
+        console.log('User found by QR code name:', user ? 'YES' : 'NO');
+        if (user) {
+          console.log('User details:', { id: user._id, name: user.first_name + ' ' + user.last_name, email: user.email });
+        }
+      }
+      
+      // If not found by QR code, try to find by OCR data
+      if (!user && ocrResult.parsedData.customerName) {
+        const customerName = ocrResult.parsedData.customerName;
+        const nameParts = customerName.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ');
+        
+        user = await userModel.model.findOne({
+          first_name: firstName,
+          last_name: lastName
+        });
+        
+        console.log('User found by OCR name:', user ? 'YES' : 'NO');
+        if (user) {
+          console.log('User details:', { id: user._id, name: user.first_name + ' ' + user.last_name, email: user.email });
+        }
+      }
+      
+      // If still not found, try to find by email
+      if (!user && ocrResult.parsedData.email) {
+        user = await userModel.model.findOne({ email: ocrResult.parsedData.email });
+        console.log('User found by email:', user ? 'YES' : 'NO');
+        if (user) {
+          console.log('User details:', { id: user._id, name: user.first_name + ' ' + user.last_name, email: user.email });
+        }
+      }
+      
+      // If still not found, try to find by phone
+      if (!user && ocrResult.parsedData.phoneNumber) {
+        user = await userModel.model.findOne({ phone: ocrResult.parsedData.phoneNumber });
+        console.log('User found by phone:', user ? 'YES' : 'NO');
+        if (user) {
+          console.log('User details:', { id: user._id, name: user.first_name + ' ' + user.last_name, email: user.email });
+        }
+      }
+      
+      // If still not found, use the provided userId as fallback
+      if (!user) {
+        user = await userModel.findById(userId);
+        console.log('User found by provided ID:', user ? 'YES' : 'NO');
+        if (user) {
+          console.log('User details:', { id: user._id, name: user.first_name + ' ' + user.last_name, email: user.email });
+        }
+      }
+      
+      // Find store by QR code data first
+      if (qrResult.success && qrResult.extractedFields.storeNumber) {
+        store = await storeModel.model.findOne({ 'address.postal_code': qrResult.extractedFields.storeNumber });
+        console.log('Store found by QR code number:', store ? 'YES' : 'NO');
+        if (store) {
+          console.log('Store details:', { id: store._id, name: store.name, postal_code: store.address.postal_code });
+        }
+      }
+      
+      // If not found by QR code, try to find by OCR data
+      if (!store && ocrResult.parsedData.storeName) {
+        store = await storeModel.model.findOne({ name: ocrResult.parsedData.storeName });
+        console.log('Store found by OCR name:', store ? 'YES' : 'NO');
+        if (store) {
+          console.log('Store details:', { id: store._id, name: store.name, code: store.code });
+        }
+      }
+      
+      // If still not found, use the provided storeId as fallback
+      if (!store) {
+        store = await storeModel.findById(storeId);
+        console.log('Store found by provided ID:', store ? 'YES' : 'NO');
+        if (store) {
+          console.log('Store details:', { id: store._id, name: store.name, code: store.code });
+        }
+      }
+      
+      // If user still not found, return an error
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          error: 'User not found',
+          details: 'Could not find a matching user in the database. Please ensure the customer information is correct.'
+        });
+      }
+      
+      // If store still not found, return an error
+      if (!store) {
+        return res.status(400).json({
+          success: false,
+          error: 'Store not found',
+          details: 'Could not find a matching store in the database. Please ensure the store information is correct.'
+        });
+      }
+      
+      // Update userId and storeId with the found values
+      userId = user._id.toString();
+      storeId = store._id.toString();
+      
+      console.log('Final User ID:', userId);
+      console.log('Final Store ID:', storeId);
+      
+    } catch (dbError) {
+      console.error('Database query error:', dbError);
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection error. Please try again.'
+      });
+    }
+
     // Create scan upload record
     let scanUpload;
     try {
@@ -738,7 +1177,35 @@ router.post('/upload-receipt', [
         date: purchaseDate || ocrResult.parsedData.date,
         status: 'provisional',
         filePath: req.file.path,
-        ocrExtractedText: ocrResult.extractedText
+        ocrExtractedText: ocrResult.extractedText,
+        // Store structured OCR data
+        ocrData: {
+          invoiceNumber: ocrResult.parsedData.invoiceNumber,
+          storeName: ocrResult.parsedData.storeName,
+          amount: ocrResult.parsedData.amount,
+          currency: ocrResult.parsedData.currency,
+          date: ocrResult.parsedData.date,
+          paymentMethod: ocrResult.parsedData.paymentMethod,
+          customerName: ocrResult.parsedData.customerName,
+          liters: ocrResult.parsedData.liters,
+          phoneNumber: ocrResult.parsedData.phoneNumber,
+          email: ocrResult.parsedData.email,
+          confidence: ocrResult.confidence,
+          extractionMethod: ocrResult.extractionMethod || 'fast'
+        },
+        // Store structured QR code data
+        qrData: qrResult.success ? {
+          receiptId: qrResult.extractedFields.receiptId,
+          storeNumber: qrResult.extractedFields.storeNumber,
+          amount: qrResult.extractedFields.amount,
+          date: parseFormattedDate(qrResult.extractedFields.date),
+          verificationCode: qrResult.extractedFields.verificationCode,
+          customerName: qrResult.extractedFields.customerName,
+          transactionId: qrResult.extractedFields.transactionId,
+          rawData: qrResult.extractedFields.rawData,
+          confidence: qrResult.confidence,
+          extractionMethod: qrResult.extractionMethod
+        } : {}
       });
     } catch (dbError) {
       console.error('ScanUpload creation error:', dbError);
@@ -770,20 +1237,51 @@ router.post('/upload-receipt', [
       // Don't fail the request for audit log errors, just log them
     }
 
+    // Format the date properly for frontend display
+    const formatDateForDisplay = (date) => {
+      if (!date) return 'Not Found';
+      if (typeof date === 'string') return date;
+      if (date instanceof Date) {
+        // Format as DD/MM/YYYY - HH:MM AM/PM
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = date.getHours();
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        return `${day}/${month}/${year} - ${displayHours}:${minutes} ${ampm}`;
+      }
+      return 'Not Found';
+    };
+
     res.json({
       success: true,
       message: 'Receipt uploaded and processed successfully',
       data: {
         scanUploadId: scanUpload._id,
-        extractedData: ocrResult.parsedData,
-        confidence: ocrResult.confidence,
-        status: 'provisional',
-        warnings: validation.warnings || [],
-        ocrDetails: {
+        // OCR extracted data
+        ocrData: {
+          extractedData: {
+            ...ocrResult.parsedData,
+            date: formatDateForDisplay(ocrResult.parsedData.date)
+          },
+          confidence: ocrResult.confidence,
+          rawText: ocrResult.extractedText,
           technique: ocrResult.extractionMethod || 'fast',
           extractionMethod: ocrResult.extractionMethod || 'fast',
           processingTime: ocrResult.processingTime
-        }
+        },
+        // QR code extracted data
+        qrData: {
+          extractedFields: qrResult.extractedFields,
+          success: qrResult.success,
+          confidence: qrResult.confidence,
+          extractionMethod: qrResult.extractionMethod,
+          error: qrResult.error
+        },
+        status: 'provisional',
+        warnings: validation.warnings || []
       }
     });
   } catch (error) {
@@ -839,8 +1337,8 @@ router.get('/ocr-status', async (req, res) => {
 // @desc    Get scan uploads with pagination and filtering
 // @access  Private (Manager+)
 router.get('/scan-uploads', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
   query('page').optional().isInt({ min: 1 }).toInt(),
   query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
   query('user_id').optional().isMongoId(),
@@ -965,12 +1463,20 @@ router.post('/scan-uploads/:id/reconcile', [
       });
 
       // Create notification
-      await Notification.createUserNotification(
-        scanUpload.userId,
-        'Receipt Approved',
-        `Your receipt for R$ ${scanUpload.amount.toFixed(2)} has been approved. You earned ${points} points and R$ ${cashback.toFixed(2)} cashback.`,
-        'receipt_approved'
-      );
+      const notificationModel = new Notification();
+      await notificationModel.create({
+        title: 'Receipt Approved',
+        message: `Your receipt for R$ ${scanUpload.amount.toFixed(2)} has been approved. You earned ${points} points and R$ ${cashback.toFixed(2)} cashback.`,
+        type: 'success',
+        category: 'billing',
+        priority: 'normal',
+        recipients: [{
+          user: scanUpload.userId,
+          delivery_status: 'delivered'
+        }],
+        created_by: scanUpload.userId, // Add required created_by field
+        created_at: new Date()
+      });
 
       res.json({
         success: true,
@@ -1220,6 +1726,56 @@ router.get('/reconciliation-stats', [verifyToken, requireManager], async (req, r
     res.status(500).json({
       success: false,
       error: 'Failed to get reconciliation statistics'
+    });
+  }
+});
+
+// @route   GET /api/billing/download-invoice/:filename
+// @desc    Download invoice image file
+// @access  Private
+router.get('/download-invoice/:filename', verifyToken, async (req, res) => {
+  try {
+    const { filename } = req.params;
+    
+    // Validate filename
+    if (!filename || !filename.match(/^invoice-.*\.(png|jpg|jpeg)$/)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid filename format'
+      });
+    }
+    
+    // Construct file path
+    const filePath = path.join(__dirname, '../uploads/qr-codes', filename);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Invoice file not found'
+      });
+    }
+    
+    // Get file stats
+    const stats = fs.statSync(filePath);
+    
+    // Set appropriate headers
+    const ext = path.extname(filename).toLowerCase();
+    const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', stats.size);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error('Download invoice error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to download invoice file'
     });
   }
 });

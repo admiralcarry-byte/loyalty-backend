@@ -13,21 +13,28 @@ class Database {
         console.log('✅ Already connected to MongoDB');
         return this.connection;
       }
-      // const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/aguatwezah_admin';
-
       const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://admiralcarry_db_user:hRbz6MRdicUoyLZk@loyalty-cloud.k62anvl.mongodb.net/aguatwezah_admin';
+      
+      // Configure mongoose buffering globally
+      mongoose.set('bufferCommands', false);
+      
+      // Prevent Mongoose from auto-creating collections
+      mongoose.set('autoCreate', false);
+      mongoose.set('autoIndex', false);
       
       console.log('🚀 Connecting to MongoDB...');
       console.log('📍 Connection URI:', mongoUri.replace(/\/\/.*@/, '//***:***@')); // Hide credentials in logs
       
-      // Enhanced connection options for Atlas
+      // Connection options for MongoDB with improved timeouts
       const connectionOptions = {
         maxPoolSize: 10,
-        serverSelectionTimeoutMS: 30000, // Increased for Atlas
+        serverSelectionTimeoutMS: 30000, // Increased from 5000 to 30000
         socketTimeoutMS: 45000,
-        connectTimeoutMS: 30000, // Increased for Atlas
+        connectTimeoutMS: 30000, // Increased from 10000 to 30000
         retryWrites: true,
         w: 'majority',
+        maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+        heartbeatFrequencyMS: 10000, // Send a ping every 10 seconds
       };
       
       this.connection = await mongoose.connect(mongoUri, connectionOptions);
@@ -48,7 +55,7 @@ class Database {
 
       mongoose.connection.on('reconnected', () => {
         console.log('🔄 MongoDB reconnected');
-        this.isConnected = false;
+        this.isConnected = true;
       });
 
       return this.connection;

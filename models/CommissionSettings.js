@@ -104,8 +104,6 @@ commissionSettingsSchema.index({ created_at: -1 });
 commissionSettingsSchema.statics.getCurrentSettings = async function() {
   try {
     const settings = await this.findOne({ is_active: true })
-      .populate('created_by', 'first_name last_name email')
-      .populate('updated_by', 'first_name last_name email')
       .sort({ created_at: -1 });
     
     if (!settings) {
@@ -133,10 +131,10 @@ commissionSettingsSchema.statics.getCurrentSettings = async function() {
   }
 };
 
-// Static method to create new settings (deactivates old ones)
+// Static method to create new settings (keeps old ones for historical purposes)
 commissionSettingsSchema.statics.createNewSettings = async function(settingsData, userId) {
   try {
-    // Deactivate all existing settings
+    // Deactivate only the currently active settings
     await this.updateMany({ is_active: true }, { is_active: false });
     
     // Create new settings
@@ -154,6 +152,34 @@ commissionSettingsSchema.statics.createNewSettings = async function(settingsData
   }
 };
 
+// Static method to update current active settings
+commissionSettingsSchema.statics.updateCurrentSettings = async function(settingsData, userId) {
+  try {
+    // Find the currently active settings
+    const currentSettings = await this.findOne({ is_active: true });
+    
+    if (!currentSettings) {
+      // If no active settings exist, create new ones
+      return await this.createNewSettings(settingsData, userId);
+    }
+    
+    // Update the existing active settings
+    const updatedSettings = await this.findByIdAndUpdate(
+      currentSettings._id,
+      {
+        ...settingsData,
+        updated_by: userId,
+        updated_at: new Date()
+      },
+      { new: true, runValidators: true }
+    );
+    
+    return updatedSettings;
+  } catch (error) {
+    throw new Error(`Failed to update current commission settings: ${error.message}`);
+  }
+};
+
 // Instance method to calculate commission for a given tier and sales amount
 commissionSettingsSchema.methods.calculateCommission = function(tier, salesAmount) {
   const tierKey = tier.toLowerCase();
@@ -167,6 +193,40 @@ commissionSettingsSchema.methods.calculateCommission = function(tier, salesAmoun
 // Instance method to check if user meets minimum requirements
 commissionSettingsSchema.methods.meetsMinimumRequirements = function(activeUsers) {
   return activeUsers >= this.minimum_active_users;
+};
+
+// Static method to get settings that were active at a specific point in time
+commissionSettingsSchema.statics.getSettingsAtTime = async function(timestamp) {
+  try {
+    // Find the most recent settings that were created at or before the timestamp
+    const settings = await this.findOne({
+      createdAt: { $lte: timestamp }
+    })
+      .sort({ createdAt: -1 });
+    
+    if (!settings) {
+      // Return default settings if none exist
+      return {
+        base_commission_rate: 5.0,
+        tier_multipliers: {
+          lead: 1.0,
+          silver: 1.2,
+          gold: 1.5,
+          platinum: 2.0
+        },
+        minimum_active_users: 10,
+        payout_threshold: 50.0,
+        payout_frequency: 'monthly',
+        auto_approval: false,
+        commission_cap: 1000.0,
+        is_active: true
+      };
+    }
+    
+    return settings;
+  } catch (error) {
+    throw new Error(`Failed to get commission settings at time: ${error.message}`);
+  }
 };
 
 module.exports = class CommissionSettings {

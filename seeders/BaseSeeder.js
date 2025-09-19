@@ -12,11 +12,22 @@ class BaseSeeder {
 
   async connect() {
     try {
+      // Check if mongoose is already connected
+      if (mongoose.connection.readyState === 1) {
+        this.connection = mongoose.connection;
+        this.isConnected = true;
+        return this.connection;
+      }
+
       if (this.isConnected) {
         return this.connection;
       }
 
       const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/aguatwezah_admin';
+      
+      // Configure mongoose to prevent auto-creation
+      mongoose.set('autoCreate', false);
+      mongoose.set('autoIndex', false);
       
       this.connection = await mongoose.connect(mongoUri, {
         maxPoolSize: 10,

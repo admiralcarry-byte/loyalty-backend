@@ -34,37 +34,26 @@ class Sale extends BaseModel {
 
   // Get sales with user and product details
   async getSalesWithDetails(conditions = {}, options = {}) {
-    let query = `
-      SELECT s.*, 
-             u.username, u.first_name, u.last_name, u.email,
-             p.name as product_name, p.price as product_price,
-             st.name as store_name, st.address as store_address
-      FROM sales s
-      LEFT JOIN users u ON s.user_id = u.id
-      LEFT JOIN products p ON s.product_id = p.id
-      LEFT JOIN stores st ON s.store_id = st.id
-    `;
-    
-    const params = [];
-    if (Object.keys(conditions).length > 0) {
-      const whereClause = Object.keys(conditions)
-        .map(key => `s.${key} = ?`)
-        .join(' AND ');
-      query += ` WHERE ${whereClause}`;
-      params.push(...Object.values(conditions));
+    try {
+      let query = this.model.find(conditions)
+        .populate('user_id', 'username first_name last_name email')
+        .populate('product_id', 'name price')
+        .populate('store_id', 'name address')
+        .sort({ created_at: -1 });
+
+      if (options.limit) {
+        query = query.limit(options.limit);
+      }
+
+      if (options.offset) {
+        query = query.skip(options.offset);
+      }
+
+      return await query.exec();
+    } catch (error) {
+      console.error('Error in getSalesWithDetails:', error);
+      throw error;
     }
-
-    query += ` ORDER BY s.created_at DESC`;
-
-    if (options.limit) {
-      query += ` LIMIT ${options.limit}`;
-    }
-
-    if (options.offset) {
-      query += ` OFFSET ${options.offset}`;
-    }
-
-    return await this.executeQuery(query, params);
   }
 
   // Get sales statistics

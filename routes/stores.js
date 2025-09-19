@@ -9,8 +9,8 @@ const router = express.Router();
 // @desc    Get all stores with pagination and filters
 // @access  Private (Manager+)
 router.get('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const result = await storeController.getAllStores(req);
@@ -57,12 +57,12 @@ router.post('/', [
   body('name').trim().isLength({ min: 2 }).withMessage('Store name must be at least 2 characters'),
   body('address').trim().isLength({ min: 10 }).withMessage('Address must be at least 10 characters'),
   body('city').trim().isLength({ min: 2 }).withMessage('City must be at least 2 characters'),
+  body('state').trim().isLength({ min: 2 }).withMessage('State must be at least 2 characters'),
   body('country').trim().isLength({ min: 2 }).withMessage('Country must be at least 2 characters'),
-  body('phone').optional().isMobilePhone().withMessage('Phone must be a valid mobile number'),
-  body('email').optional().isEmail().withMessage('Email must be a valid email address'),
-  body('status').optional().isIn(['active', 'inactive', 'maintenance', 'closed']).withMessage('Invalid status'),
-  body('latitude').optional().isFloat({ min: -90, max: 90 }).withMessage('Latitude must be between -90 and 90'),
-  body('longitude').optional().isFloat({ min: -180, max: 180 }).withMessage('Longitude must be between -180 and 180')
+  body('postal_code').trim().isNumeric().withMessage('Postal code must be numeric (store number)'),
+  body('phone').isMobilePhone().withMessage('Phone must be a valid mobile number'),
+  body('email').isEmail().withMessage('Email must be a valid email address'),
+  body('status').optional().isIn(['active', 'inactive', 'suspended']).withMessage('Invalid status')
 ], async (req, res) => {
   try {
     const newStore = await storeController.createStore(req.body);

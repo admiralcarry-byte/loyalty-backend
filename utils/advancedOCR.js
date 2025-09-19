@@ -378,10 +378,11 @@ class AdvancedOCR {
     const paymentMethod = this.extractPaymentMethodAdvanced(text);
     const items = this.extractItemsAdvanced(text);
     const taxInfo = this.extractTaxInfoAdvanced(text);
+    const customerName = this.extractCustomerNameAdvanced(text);
     
     // Calculate advanced confidence scoring
     const confidence = this.calculateAdvancedConfidence({
-      invoiceNumber, date, amountResult, storeName, paymentMethod, items, taxInfo
+      invoiceNumber, date, amountResult, storeName, paymentMethod, items, taxInfo, customerName
     });
     
     return {
@@ -393,6 +394,7 @@ class AdvancedOCR {
       paymentMethod: paymentMethod || 'unknown',
       items: items || [],
       taxInfo: taxInfo || {},
+      customerName: customerName || 'UNKNOWN',
       confidence: Math.max(confidence, 0.1),
       extractionMethod: 'advanced'
     };
@@ -659,6 +661,11 @@ class AdvancedOCR {
     }
     totalFields++;
     
+    if (fields.customerName && fields.customerName !== 'UNKNOWN') {
+      score += 0.1;
+    }
+    totalFields++;
+    
     if (fields.items && fields.items.length > 0) {
       score += 0.05;
     }
@@ -763,6 +770,42 @@ class AdvancedOCR {
     } else {
       return 'unknown';
     }
+  }
+
+  /**
+   * Advanced customer name extraction
+   */
+  extractCustomerNameAdvanced(text) {
+    const customerPatterns = [
+      // Customer: name pattern
+      /(?:Customer|Cliente|Comprador|Buyer)[\s:]*([A-Za-z\s]+)/i,
+      // Name: name pattern  
+      /(?:Name|Nome)[\s:]*([A-Za-z\s]+)/i,
+      // Purchaser: name pattern
+      /(?:Purchaser|Comprador)[\s:]*([A-Za-z\s]+)/i,
+      // Buyer: name pattern
+      /(?:Buyer|Comprador)[\s:]*([A-Za-z\s]+)/i,
+      // More specific patterns for receipts
+      /(?:Cliente|Customer)[\s:]*([A-Za-z\s]{2,30})/i,
+      /(?:Nome|Name)[\s:]*([A-Za-z\s]{2,30})/i
+    ];
+    
+    for (const pattern of customerPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        const name = match[1].trim();
+        // Filter out common false positives
+        if (name.length > 1 && 
+            !name.match(/^(Customer|Cliente|Comprador|Buyer|Name|Nome|Purchaser)$/i) &&
+            !name.match(/^\d+$/) && // Not just numbers
+            !name.match(/^(R\$|USD|BRL|Total|Amount|Valor)$/i) && // Not currency
+            !name.match(/^(Invoice|Nota|Receipt|Cupom)$/i)) { // Not receipt types
+          return name;
+        }
+      }
+    }
+    
+    return null;
   }
 
   /**

@@ -9,8 +9,8 @@ const router = express.Router();
 // @desc    Get all notifications with pagination and filters
 // @access  Private (Manager+)
 router.get('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     // For now, return empty data structure
@@ -34,8 +34,8 @@ router.get('/', [
 
 // Original implementation (commented out for now)
 router.get('/old', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const {
@@ -448,6 +448,59 @@ router.put('/user/:userId/mark-all-read', [verifyToken, requireManager], async (
     res.status(500).json({
       success: false,
       error: 'Failed to mark all notifications as read'
+    });
+  }
+});
+
+// @route   GET /api/notifications/old
+// @desc    Get old notifications
+// @access  Private (Manager+)
+router.get('/old', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    const oldNotifications = await Notification.getOldNotifications(parseInt(limit));
+
+    res.json({
+      success: true,
+      data: oldNotifications
+    });
+  } catch (error) {
+    console.error('Get old notifications error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get old notifications'
+    });
+  }
+});
+
+// @route   GET /api/notifications/user/:userId
+// @desc    Get notifications by user
+// @access  Private (Manager+)
+router.get('/user/:userId', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 50 } = req.query;
+    
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const notifications = await Notification.getNotificationsByUser(userId, parseInt(limit));
+
+    res.json({
+      success: true,
+      data: notifications
+    });
+  } catch (error) {
+    console.error('Get notifications by user error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get notifications by user'
     });
   }
 });

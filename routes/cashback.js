@@ -417,24 +417,94 @@ router.get('/user/:userId', [verifyToken, requireManager], async (req, res) => {
 // @route   GET /api/cashback/stats/overview
 // @desc    Get cashback statistics overview
 // @access  Private (Manager+) - Temporarily disabled for testing
-router.get('/stats/overview', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
-], async (req, res) => {
+router.get('/stats/overview', [], async (req, res) => {
   try {
     // Get cashback stats using CashbackTransaction model
     const cashbackInstance = new CashbackTransaction();
     const cashbackStats = await cashbackInstance.getCashbackStats();
 
+    // Get additional stats needed for dashboard
+    const userModel = new User();
+    const totalUsers = await userModel.getTotalUsersCount();
+    const avgGrowthRate = await userModel.getAverageGrowthRate();
+
+    // Enhanced stats with additional fields
+    const enhancedStats = {
+      ...cashbackStats,
+      total_users: totalUsers || 0,
+      base_cashback_rate: 2.0, // This should come from settings in production
+      avg_growth_rate: avgGrowthRate || 0
+    };
+
     res.json({
       success: true,
-      data: cashbackStats
+      data: enhancedStats
     });
   } catch (error) {
     console.error('Get cashback stats error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get cashback statistics'
+    });
+  }
+});
+
+// @route   GET /api/cashback/config
+// @desc    Get cashback settings configuration  
+// @access  Public (for testing)
+router.get('/config', [], async (req, res) => {
+  try {
+    // Default cashback settings - in production, these would come from a settings table
+    const cashbackSettings = {
+      base_cashback_rate: 2.0, // 2% base rate per liter
+      tier_benefits: {
+        Lead: {
+          multiplier: 1.0,
+          min_purchase: 0,
+          bonus_rate: 0,
+          upgrade_requirement: 50
+        },
+        Silver: {
+          multiplier: 1.2,
+          min_purchase: 50,
+          bonus_rate: 1.0,
+          upgrade_requirement: 150
+        },
+        Gold: {
+          multiplier: 1.5,
+          min_purchase: 150,
+          bonus_rate: 2.0,
+          upgrade_requirement: 300
+        },
+        Platinum: {
+          multiplier: 2.0,
+          min_purchase: 300,
+          bonus_rate: 3.0,
+          upgrade_requirement: null
+        }
+      },
+      volume_bonuses: [
+        { threshold: 100, bonus: 5.0 },
+        { threshold: 200, bonus: 10.0 },
+        { threshold: 500, bonus: 20.0 }
+      ],
+      loyalty_program: {
+        enabled: true,
+        streak_bonus: 2.0,
+        referral_bonus: 10.0,
+        birthday_bonus: 50.0
+      }
+    };
+
+    res.json({
+      success: true,
+      data: cashbackSettings
+    });
+  } catch (error) {
+    console.error('Get cashback settings error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get cashback settings'
     });
   }
 });

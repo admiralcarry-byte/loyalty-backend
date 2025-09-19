@@ -51,22 +51,22 @@ class SaleController {
       
       // Store filter
       if (store_id) {
-        query.store = store_id;
+        query.store_id = store_id;
       }
       
       // User filter
       if (user_id) {
-        query.customer = user_id;
+        query.user_id = user_id;
       }
       
       // Date filters
       if (start_date || end_date) {
-        query.createdAt = {};
+        query.created_at = {};
         if (start_date) {
-          query.createdAt.$gte = new Date(start_date);
+          query.created_at.$gte = new Date(start_date);
         }
         if (end_date) {
-          query.createdAt.$lte = new Date(end_date);
+          query.created_at.$lte = new Date(end_date);
         }
       }
       
@@ -77,10 +77,9 @@ class SaleController {
       // Get sales with populated fields (without search query initially)
       let sales = await this.saleModel.model
         .find(query)
-        .populate('customer', 'first_name last_name phone email')
-        .populate('store', 'name address')
-        .populate('seller', 'first_name last_name')
-        .populate('items.product', 'name')
+        .populate('user_id', 'first_name last_name phone email')
+        .populate('store_id', 'name address city country')
+        .populate('product_id', 'name')
         .sort(sort)
         .skip(offset)
         .limit(parseInt(limit));
@@ -89,10 +88,10 @@ class SaleController {
       if (search) {
         const searchLower = search.toLowerCase();
         sales = sales.filter(sale => {
-          const customerName = sale.customer ? 
-            `${sale.customer.first_name} ${sale.customer.last_name}`.toLowerCase() : '';
-          const customerPhone = sale.customer?.phone?.toLowerCase() || '';
-          const storeName = sale.store?.name?.toLowerCase() || '';
+          const customerName = sale.user_id ? 
+            `${sale.user_id.first_name} ${sale.user_id.last_name}`.toLowerCase() : '';
+          const customerPhone = sale.user_id?.phone?.toLowerCase() || '';
+          const storeName = sale.store_id?.name?.toLowerCase() || '';
           
           return customerName.includes(searchLower) || 
                  customerPhone.includes(searchLower) || 
@@ -104,8 +103,85 @@ class SaleController {
       // Get total count
       const total = await this.saleModel.model.countDocuments(query);
       
+      // Get store names for sales that have store_number but no store_id
+      const storeNumbers = sales
+        .filter(sale => sale.store_number && !sale.store_id)
+        .map(sale => sale.store_number);
+      
+      const Store = require('../models/Store');
+      const storeModel = new Store();
+      const storesByNumber = new Map();
+      
+      if (storeNumbers.length > 0) {
+        const stores = await storeModel.model.find({ 
+          'address.postal_code': { $in: storeNumbers } 
+        }).lean();
+        
+        stores.forEach(store => {
+          storesByNumber.set(store.address.postal_code, store);
+        });
+      }
+
+      // Format sales data for frontend
+      const formattedSales = sales.map(sale => {
+        // Use stored commission amount for historical data
+        const commissionAmount = sale.commission?.amount || 0;
+        
+        // Get store information - prioritize store_id, fallback to store_number lookup
+        let storeInfo = { name: 'Unknown Store', address: 'N/A', city: 'N/A', country: 'N/A' };
+        
+        if (sale.store_id) {
+          // Use populated store data
+          storeInfo = {
+            name: sale.store_id.name || 'Unknown Store',
+            address: sale.store_id.address?.street || 'N/A',
+            city: sale.store_id.address?.city || 'N/A',
+            country: sale.store_id.address?.country || 'N/A'
+          };
+        } else if (sale.store_number && storesByNumber.has(sale.store_number)) {
+          // Look up store by store_number
+          const store = storesByNumber.get(sale.store_number);
+          storeInfo = {
+            name: store.name || 'Unknown Store',
+            address: store.address?.street || 'N/A',
+            city: store.address?.city || 'N/A',
+            country: store.address?.country || 'N/A'
+          };
+        }
+        
+        // Debug logging
+        console.log(`Sale ${sale.sale_number}: Commission data:`, sale.commission ? `$${commissionAmount}` : 'No commission found');
+        
+        return {
+          _id: sale._id,
+          id: sale._id,
+          sale_number: sale.sale_number,
+          transaction_id: sale.transaction_id,
+          customer: sale.user_id ? {
+            name: `${sale.user_id.first_name || 'Unknown'} ${sale.user_id.last_name || 'Customer'}`,
+            phone: sale.user_id.phone || 'N/A',
+            email: sale.user_id.email || 'N/A'
+          } : { name: 'Walk-in Customer', phone: 'N/A', email: 'N/A' },
+          store: storeInfo,
+          product: sale.product_id ? {
+            name: sale.product_id.name
+          } : { name: 'Unknown Product' },
+          quantity: sale.quantity,
+          total_liters: sale.quantity, // Use quantity as liters for now
+          unit_price: sale.unit_price,
+          total_amount: sale.total_amount,
+          cashback_earned: sale.cashback_earned || 0,
+          commission: commissionAmount,
+          payment_status: sale.payment_status,
+          order_status: sale.order_status,
+          payment_method: sale.payment_method,
+          created_at: sale.createdAt,
+          notes: sale.notes
+        };
+      });
+
       return {
-        sales,
+        sales: formattedSales,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -137,12 +213,12 @@ class SaleController {
       user_id = '',
       start_date = '',
       end_date = '',
-      sortBy = 'created_at',
+      sortBy = 'createdAt',
       sortOrder = 'DESC'
     } = req.query;
 
     const offset = (page - 1) * limit;
-    const validSortFields = ['id', 'total_amount', 'status', 'created_at', 'user_id', 'store_id'];
+    const validSortFields = ['id', 'total_amount', 'status', 'createdAt', 'user_id', 'store_id'];
     const validSortOrders = ['ASC', 'DESC'];
 
     if (!validSortFields.includes(sortBy)) {
@@ -203,8 +279,8 @@ class SaleController {
     if (status) query.status = status;
     if (user_id) query.user = user_id;
     if (store_id) query.store = store_id;
-    if (start_date) query.created_at = { $gte: new Date(start_date) };
-    if (end_date) query.created_at = { ...query.created_at, $lte: new Date(end_date) };
+    if (start_date) query.createdAt = { $gte: new Date(start_date) };
+    if (end_date) query.createdAt = { ...query.createdAt, $lte: new Date(end_date) };
 
     // Get total count
     const total = await this.saleModel.model.countDocuments(query);
@@ -292,19 +368,9 @@ class SaleController {
       if (user) {
         userId = user._id;
       } else {
-        // Create a test user for walk-in customers
-        const testUser = await this.userModel.model.create({
-          username: `test-${Date.now()}`,
-          first_name: saleData.customer,
-          last_name: 'Customer',
-          email: `test-${Date.now()}@example.com`,
-          phone: saleData.customerPhone || '000000000',
-          password_hash: 'test123', // Temporary password for testing
-          role: 'customer',
-          status: 'active',
-          loyalty_tier: 'lead'
-        });
-        userId = testUser._id;
+        // For production: Don't create test users automatically
+        // Instead, require valid user ID or throw an error
+        throw new Error(`User not found for customer: ${saleData.customer}. Please ensure the customer exists in the system or provide a valid user_id.`);
       }
       
       // Find store by name or create a test store
@@ -315,24 +381,9 @@ class SaleController {
       if (store) {
         storeId = store._id;
       } else {
-        // Create a test store
-        const testStore = await this.storeModel.model.create({
-          code: `STORE-${Date.now()}`,
-          name: saleData.location,
-          address: {
-            street: 'Test Street',
-            city: 'Test City',
-            state: 'Test State',
-            postal_code: '00000',
-            country: 'Test Country'
-          },
-          location: {
-            type: 'Point',
-            coordinates: [0, 0]
-          },
-          is_open: true
-        });
-        storeId = testStore._id;
+        // For production: Don't create test stores automatically
+        // Instead, require valid store ID or throw an error
+        throw new Error(`Store not found for location: ${saleData.location}. Please ensure the store exists in the system or provide a valid store_id.`);
       }
     } else {
       throw new Error('Either user_id/store_id or customer/location are required');
@@ -343,46 +394,203 @@ class SaleController {
       throw new Error('User ID, store ID, and total amount are required');
     }
 
-    // Create sale data structure
+    // Get user details for tier information
+    const user = await this.userModel.model.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Get or create test product
+    const productId = await this.getOrCreateTestProduct();
+    const totalAmount = saleData.total_amount || saleData.amount;
+    const liters = saleData.liters || 1;
+    const quantity = liters; // Use liters as quantity for water sales
+    const unitPrice = totalAmount / quantity; // Calculate unit price based on quantity
+
+    // Get commission settings - always use current active settings for new purchases
+    let commissionSettings;
+    if (saleData.commission_settings_id) {
+      // Use specific settings ID if provided
+      const CommissionSettings = require('../models/CommissionSettings');
+      const commissionSettingsModel = new CommissionSettings();
+      commissionSettings = await commissionSettingsModel.model.findById(saleData.commission_settings_id);
+    } else {
+      // Always use current active settings for new purchases
+      const CommissionSettings = require('../models/CommissionSettings');
+      const commissionSettingsModel = new CommissionSettings();
+      commissionSettings = await commissionSettingsModel.model.getCurrentSettings();
+    }
+    
+    // Calculate commission and cashback based on current settings for new sales
+    const { commissionAmount, commissionRate, cashbackAmount } = await this.calculateCommissionAndCashback(
+      totalAmount, 
+      liters, 
+      user.loyalty_tier, 
+      commissionSettings
+    );
+    
+
+    // Create sale data structure with required individual fields
     const saleRecord = {
       sale_number: this.generateSaleNumber(),
+      transaction_id: this.generateReferenceNumber(),
+      user_id: userId,
+      store_id: storeId,
+      product_id: productId,
+      quantity: quantity,
+      unit_price: unitPrice,
+      subtotal: totalAmount,
+      total_amount: totalAmount,
       customer: userId,
       store: storeId,
       seller: userId, // For testing, use the same user as seller
       items: [{
-        product: await this.getOrCreateTestProduct(),
-        quantity: 1,
-        unit_price: saleData.total_amount || saleData.amount,
-        total_price: saleData.total_amount || saleData.amount,
-        points_earned: Math.floor((saleData.total_amount || saleData.amount) * 0.1), // 10% points
-        liters: saleData.liters || 1
+        product: productId,
+        quantity: quantity,
+        unit_price: unitPrice,
+        total_price: totalAmount,
+        points_earned: Math.floor(totalAmount * 0.1), // 10% points
+        liters: liters
       }],
-      subtotal: saleData.total_amount || saleData.amount,
-      discount: 0,
-      tax: 0,
-      delivery_fee: 0,
-      total_amount: saleData.total_amount || saleData.amount,
+      discount_amount: 0,
+      tax_amount: 0,
       payment_method: saleData.paymentMethod || 'cash',
       payment_status: 'paid',
       delivery_status: 'delivered',
-      points_earned: Math.floor((saleData.total_amount || saleData.amount) * 0.1),
+      points_earned: Math.floor(totalAmount * 0.1),
       points_spent: 0,
-      total_liters: saleData.liters || 1,
+      total_liters: liters,
+      cashback_earned: cashbackAmount,
       commission: {
-        amount: 0,
-        rate: 0,
-        calculated: false
+        amount: commissionAmount,
+        rate: commissionRate,
+        calculated: true,
+        tier: user.loyalty_tier,
+        settings_used: commissionSettings._id || 'current'
       },
       referral: {
         bonus: 0
       },
       metadata: {
-        source: 'in_store'
+        source: 'in_store',
+        commission_settings_snapshot: {
+          base_rate: commissionSettings.base_commission_rate,
+          tier_multipliers: commissionSettings.tier_multipliers,
+          commission_cap: commissionSettings.commission_cap
+        }
       }
     };
 
-    return await this.saleModel.model.create(saleRecord);
+    const createdSale = await this.saleModel.model.create(saleRecord);
+    
+    // Commission data is stored in the sale record itself - no separate commission records needed
+    return createdSale;
   }
+
+  // Get commission settings that were active at a specific time
+  async getCommissionSettingsAtTime(timestamp) {
+    try {
+      const CommissionSettings = require('../models/CommissionSettings');
+      const commissionSettingsModel = new CommissionSettings();
+      
+      const settings = await commissionSettingsModel.model.getSettingsAtTime(timestamp);
+      
+      return settings;
+    } catch (error) {
+      console.error('Error getting commission settings at time:', error);
+      // Return default settings if there's an error
+      return {
+        base_commission_rate: 5.0,
+        tier_multipliers: {
+          lead: 1.0,
+          silver: 1.2,
+          gold: 1.5,
+          platinum: 2.0
+        },
+        commission_cap: 1000.0
+      };
+    }
+  }
+
+  // Get dynamic commission amount for a sale based on current settings
+  async getCommissionForSale(saleId) {
+    try {
+      const sale = await this.saleModel.model.findById(saleId).populate('user_id', 'loyalty_tier');
+      if (!sale) {
+        throw new Error('Sale not found');
+      }
+
+      // Get current commission settings
+      const CommissionSettings = require('../models/CommissionSettings');
+      const commissionSettingsModel = new CommissionSettings();
+      const currentSettings = await commissionSettingsModel.model.getCurrentSettings();
+
+      // Calculate commission based on current settings
+      const { commissionAmount, commissionRate } = await this.calculateCommissionAndCashback(
+        sale.total_amount,
+        sale.liters_sold || sale.total_liters || 1,
+        sale.user_id.loyalty_tier || 'lead',
+        currentSettings
+      );
+
+      return {
+        commissionAmount,
+        commissionRate,
+        tier: sale.user_id.loyalty_tier || 'lead',
+        settings: {
+          base_rate: currentSettings.base_commission_rate,
+          tier_multipliers: currentSettings.tier_multipliers,
+          commission_cap: currentSettings.commission_cap
+        }
+      };
+    } catch (error) {
+      console.error('Error getting commission for sale:', error);
+      throw error;
+    }
+  }
+
+  // Calculate commission and cashback based on settings and user tier
+  async calculateCommissionAndCashback(totalAmount, liters, userTier, commissionSettings) {
+    try {
+      // Calculate commission based on tier multiplier
+      const tierKey = userTier.toLowerCase();
+      const tierMultiplier = commissionSettings.tier_multipliers[tierKey] || 1.0;
+      const baseCommissionRate = commissionSettings.base_commission_rate || 5.0;
+      const commissionCap = commissionSettings.commission_cap || 1000.0;
+      
+      // Calculate base commission
+      const baseCommission = (totalAmount * baseCommissionRate) / 100;
+      
+      // Apply tier multiplier
+      const tierCommission = baseCommission * tierMultiplier;
+      
+      // Apply commission cap
+      const finalCommission = Math.min(tierCommission, commissionCap);
+      
+      // Calculate effective commission rate for display
+      const effectiveRate = (finalCommission / totalAmount) * 100;
+      
+      // Calculate cashback (2% per liter as per original logic, but this could be made configurable)
+      const cashbackPerLiter = 2.0;
+      const cashbackAmount = liters * cashbackPerLiter;
+      
+      return {
+        commissionAmount: Math.round(finalCommission * 100) / 100, // Round to 2 decimal places
+        commissionRate: Math.round(effectiveRate * 100) / 100,
+        cashbackAmount: Math.round(cashbackAmount * 100) / 100
+      };
+    } catch (error) {
+      console.error('Error calculating commission and cashback:', error);
+      // Return default values if calculation fails
+      return {
+        commissionAmount: (totalAmount * 5.0) / 100,
+        commissionRate: 5.0,
+        cashbackAmount: liters * 2.0
+      };
+    }
+  }
+
+
 
   // Update sale
   async updateSale(id, saleData) {
@@ -419,32 +627,14 @@ class SaleController {
     try {
       const stats = await this.saleModel.model.aggregate([
         {
-          $addFields: {
-            total_liters_per_sale: {
-              $reduce: {
-                input: '$items',
-                initialValue: 0,
-                in: { $add: ['$$value', { $ifNull: ['$$this.liters', 0] }] }
-              }
-            },
-            total_points_per_sale: {
-              $reduce: {
-                input: '$items',
-                initialValue: 0,
-                in: { $add: ['$$value', { $ifNull: ['$$this.points_earned', 0] }] }
-              }
-            }
-          }
-        },
-        {
           $group: {
             _id: null,
             total_sales: { $sum: 1 },
             total_revenue: { $sum: '$total_amount' },
-            total_liters_sold: { $sum: '$total_liters_per_sale' },
-            total_cashback_earned: { $sum: '$total_points_per_sale' },
+            total_liters_sold: { $sum: '$total_liters' }, // Use total_liters field from schema
+            total_cashback_earned: { $sum: '$cashback_earned' }, // Use actual cashback_earned field
             average_sale_amount: { $avg: '$total_amount' },
-            average_liters_per_sale: { $avg: '$total_liters_per_sale' }
+            average_liters_per_sale: { $avg: '$quantity' }
           }
         }
       ]);
@@ -458,28 +648,14 @@ class SaleController {
         average_liters_per_sale: 0
       };
 
-      // Get total commission from Commission collection
-      const Commission = require('../models/Commission');
-      const commissionModel = new Commission();
-      const commissionStats = await commissionModel.model.aggregate([
-        {
-          $group: {
-            _id: null,
-            total_commission: { $sum: '$amount' }
-          }
-        }
-      ]);
-
-      const total_commission = commissionStats[0]?.total_commission || 0;
-
-      // Convert points to cash value (assuming 1 point = 0.01 currency)
-      const total_cashback_value = (result.total_cashback_earned || 0) * 0.01;
+      // Calculate total commission from sales data (Commission table removed)
+      const total_commission = result.total_commission || 0;
 
       return {
         total_sales: result.total_sales || 0,
         total_revenue: result.total_revenue || 0,
         total_liters_sold: result.total_liters_sold || 0,
-        total_cashback_earned: total_cashback_value, // Convert points to cash value
+        total_cashback_earned: result.total_cashback_earned || 0, // Use actual cashback amount
         total_commission: total_commission,
         average_sale_amount: result.average_sale_amount || 0,
         average_liters_per_sale: result.average_liters_per_sale || 0,
@@ -612,6 +788,34 @@ class SaleController {
       ORDER BY sale_count DESC
       LIMIT ?
     `, [limit]);
+  }
+
+  // Get all sales statistics
+  async getAllSalesStats() {
+    try {
+      const saleModel = new Sale();
+      
+      // Get comprehensive sales statistics
+      const stats = await saleModel.executeQuery(`
+        SELECT 
+          COUNT(*) as total_sales,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_sales,
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_sales,
+          COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_sales,
+          COUNT(CASE WHEN status = 'refunded' THEN 1 END) as refunded_sales,
+          SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as total_revenue,
+          AVG(CASE WHEN status = 'completed' THEN total_amount ELSE NULL END) as average_sale_amount,
+          SUM(CASE WHEN status = 'completed' THEN liters ELSE 0 END) as total_liters_sold,
+          SUM(CASE WHEN status = 'completed' THEN points_earned ELSE 0 END) as total_points_earned,
+          SUM(CASE WHEN status = 'completed' THEN cashback ELSE 0 END) as total_cashback_earned
+        FROM sales
+      `);
+
+      return stats[0] || {};
+    } catch (error) {
+      console.error('Get all sales stats error:', error);
+      throw error;
+    }
   }
 }
 

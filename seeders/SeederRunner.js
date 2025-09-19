@@ -1,76 +1,33 @@
 const BaseSeeder = require('./BaseSeeder');
 const UserSeeder = require('./UserSeeder');
 const StoreSeeder = require('./StoreSeeder');
-const ProductSeeder = require('./ProductSeeder');
-const CampaignSeeder = require('./CampaignSeeder');
 const SaleSeeder = require('./SaleSeeder');
-const PointsTransactionSeeder = require('./PointsTransactionSeeder');
-const ActivityLogSeeder = require('./ActivityLogSeeder');
-const BankDetailsSeeder = require('./BankDetailsSeeder');
-const CommissionSeeder = require('./CommissionSeeder');
 const LoyaltyLevelSeeder = require('./LoyaltyLevelSeeder');
-const NotificationSeeder = require('./NotificationSeeder');
-const AuditLogSeeder = require('./AuditLogSeeder');
-const CashbackRuleSeeder = require('./CashbackRuleSeeder');
-const CashbackTransactionSeeder = require('./CashbackTransactionSeeder');
-const PurchaseEntrySeeder = require('./PurchaseEntrySeeder');
-const SettingSeeder = require('./SettingSeeder');
-const RefreshTokenSeeder = require('./RefreshTokenSeeder');
-const OnlinePurchaseSeeder = require('./OnlinePurchaseSeeder');
-const OnlinePurchaseItemSeeder = require('./OnlinePurchaseItemSeeder');
-const ScanUploadSeeder = require('./ScanUploadSeeder');
-const BillingCompanyInvoiceSeeder = require('./BillingCompanyInvoiceSeeder');
 const InfluencerLevelSeeder = require('./InfluencerLevelSeeder');
-const PayoutRequestSeeder = require('./PayoutRequestSeeder');
-const GeneralSettingsSeeder = require('./GeneralSettingsSeeder');
-const CommissionRuleSeeder = require('./CommissionRuleSeeder');
-const CommissionSettingsSeeder = require('./CommissionSettingsSeeder');
 
 /**
  * Seeder Runner - Manages and executes all seeders
  */
 class SeederRunner extends BaseSeeder {
-  constructor() {
+  constructor(activeMode = true) {
     super();
-    this.seeders = [
-      // Core system settings first
-      GeneralSettingsSeeder,
-      SettingSeeder,
-      LoyaltyLevelSeeder,
-      InfluencerLevelSeeder,
-      
-      // Main entities
-      UserSeeder,
-      StoreSeeder,
-      ProductSeeder,
-      CampaignSeeder,
-      
-      // Transactions and activities
-      SaleSeeder,
-      PointsTransactionSeeder,
-      CommissionSeeder,
-      CashbackRuleSeeder,
-      CashbackTransactionSeeder,
-      PurchaseEntrySeeder,
-      OnlinePurchaseSeeder,
-      OnlinePurchaseItemSeeder,
-      PayoutRequestSeeder,
-      
-      // Supporting data
-      BankDetailsSeeder,
-      ScanUploadSeeder,
-      BillingCompanyInvoiceSeeder,
-      
-      // System logs and insights
-      ActivityLogSeeder,
-      AuditLogSeeder,
-      NotificationSeeder,
-      RefreshTokenSeeder,
-      
-      // Commission management
-      CommissionRuleSeeder,
-      CommissionSettingsSeeder
-    ];
+    this.activeMode = activeMode;
+    
+    if (activeMode) {
+      // Only collections needed for currently active pages (10 records each)
+      this.seeders = [
+        // Core system levels
+        LoyaltyLevelSeeder,    // 4 levels (Lead, Silver, Gold, Platinum)
+        InfluencerLevelSeeder, // 3 levels (Silver, Gold, Platinum)
+        
+        // Main entities
+        UserSeeder,            // 10 users (admin, managers, customers, influencers)
+        StoreSeeder,           // 10 stores (retail locations)
+        
+        // Transactions
+        SaleSeeder             // 10 sales transactions
+      ];
+    }
   }
 
   async seed() {
@@ -97,32 +54,18 @@ class SeederRunner extends BaseSeeder {
       
       console.log('\n✅ Database seeding completed successfully!');
       console.log('\n📊 Seeded collections:');
-      console.log('   - General Settings (company configuration)');
-      console.log('   - Settings (system configuration)');
-      console.log('   - Loyalty Levels (customer tiers)');
-      console.log('   - Influencer Levels (influencer tiers)');
-      console.log('   - Users (admin, managers, customers, influencers)');
-      console.log('   - Stores (retail, wholesale, online, mobile)');
-      console.log('   - Products (water bottles, subscriptions, services)');
-      console.log('   - Campaigns (promotional, onboarding, referral)');
-      console.log('   - Sales (customer and influencer transactions)');
-      console.log('   - Points Transactions (earned, spent, bonus, referral)');
-      console.log('   - Commissions (influencer earnings)');
-      console.log('   - Cashback Rules (discount rules)');
-      console.log('   - Cashback Transactions (discount applications)');
-      console.log('   - Purchase Entries (manual entries)');
-      console.log('   - Online Purchases (e-commerce orders)');
-      console.log('   - Online Purchase Items (order items)');
-      console.log('   - Payout Requests (commission payouts)');
-      console.log('   - Bank Details (user banking info)');
-      console.log('   - Scan Uploads (receipt processing)');
-      console.log('   - Billing Company Invoices (company billing)');
-      console.log('   - Activity Logs (user activities)');
-      console.log('   - Audit Logs (system changes)');
-      console.log('   - Notifications (user notifications)');
-      console.log('   - Refresh Tokens (session management)');
-      console.log('   - Commission Rules (commission calculation rules)');
-      console.log('   - Commission Settings (commission configuration)');
+      
+      if (this.activeMode) {
+        console.log('   - Loyalty Levels (4 customer tiers: Lead, Silver, Gold, Platinum)');
+        console.log('   - Influencer Levels (3 influencer tiers: Silver, Gold, Platinum)');
+        console.log('   - Users (10 users: admin, managers, customers, influencers)');
+        console.log('   - Stores (10 retail locations across Angola)');
+        console.log('   - Sales (10 sales transactions)');
+        console.log('\n💡 Active pages seeding mode - 5 collections for currently active pages');
+        console.log('   Only tables needed for: Dashboard, User Management, Store Management,');
+        console.log('   Sales Management, Loyalty Levels, and Influencer Levels.');
+        console.log('   Each collection contains exactly 10 sample records (except levels).');
+      }
     } catch (error) {
       console.error('\n❌ Seeding process failed:', error.message);
       throw error;
@@ -135,37 +78,20 @@ class SeederRunner extends BaseSeeder {
     try {
       await this.connect();
       
-      const collections = [
-        'refreshtokens',
-        'notifications',
-        'auditlogs',
-        'activitylogs',
-        'billingcompanyinvoice',
-        'scanuploads',
-        'bank_details',
-        'payoutrequests',
-        'onlinepurchaseitems',
-        'onlinepurchases',
-        'purchaseentries',
-        'cashbacktransactions',
-        'cashbackrules',
-        'commissions',
-        'pointstransactions',
-        'sales',
-        'campaigns',
-        'products',
-        'stores',
-        'users',
-        'influencerlevels',
-        'loyaltylevels',
-        'settings',
-        'general_settings',
-        'commissionrules',
-        'commissionsettings'
-      ];
-
-      for (const collectionName of collections) {
-        await this.clearCollection(collectionName);
+      if (this.activeMode) {
+        // Only clear collections for active pages
+        const collections = [
+          'sales',
+          'stores',
+          'users',
+          'influencerlevels',
+          'loyaltylevels'
+        ];
+        console.log('   Clearing only collections for active pages...');
+        
+        for (const collectionName of collections) {
+          await this.clearCollection(collectionName);
+        }
       }
       
       console.log('\n✅ All seeded data cleared successfully!');
@@ -184,39 +110,20 @@ class SeederRunner extends BaseSeeder {
     try {
       await this.connect();
       
-      const collections = [
-        { name: 'general_settings', description: 'General system settings' },
-        { name: 'settings', description: 'System configuration' },
-        { name: 'loyaltylevels', description: 'Customer loyalty tiers' },
-        { name: 'influencerlevels', description: 'Influencer tiers' },
-        { name: 'users', description: 'User accounts' },
-        { name: 'stores', description: 'Store locations' },
-        { name: 'products', description: 'Product catalog' },
-        { name: 'campaigns', description: 'Marketing campaigns' },
-        { name: 'sales', description: 'Sales transactions' },
-        { name: 'pointstransactions', description: 'Points transactions' },
-        { name: 'commissions', description: 'Commission records' },
-        { name: 'cashbackrules', description: 'Cashback rules' },
-        { name: 'cashbacktransactions', description: 'Cashback transactions' },
-        { name: 'purchaseentries', description: 'Purchase entries' },
-        { name: 'onlinepurchases', description: 'Online purchases' },
-        { name: 'onlinepurchaseitems', description: 'Online purchase items' },
-        { name: 'payoutrequests', description: 'Payout requests' },
-        { name: 'bank_details', description: 'Bank details' },
-        { name: 'scanuploads', description: 'Scan uploads' },
-        { name: 'billingcompanyinvoice', description: 'Company invoices' },
-        { name: 'activitylogs', description: 'Activity logs' },
-        { name: 'auditlogs', description: 'Audit logs' },
-        { name: 'notifications', description: 'Notifications' },
-        { name: 'refreshtokens', description: 'Refresh tokens' },
-        { name: 'commissionrules', description: 'Commission rules' },
-        { name: 'commissionsettings', description: 'Commission settings' }
-      ];
+      if (this.activeMode) {
+        const collections = [
+          { name: 'loyaltylevels', description: 'Customer loyalty tiers' },
+          { name: 'influencerlevels', description: 'Influencer tiers' },
+          { name: 'users', description: 'User accounts' },
+          { name: 'stores', description: 'Store locations' },
+          { name: 'sales', description: 'Sales transactions' }
+        ];
 
-      for (const collection of collections) {
-        const count = await this.getExistingCount(collection.name);
-        const status = count > 0 ? '✅ Seeded' : '⏳ Empty';
-        console.log(`${status} - ${collection.name}: ${count} records (${collection.description})`);
+        for (const collection of collections) {
+          const count = await this.getExistingCount(collection.name);
+          const status = count > 0 ? '✅ Seeded' : '⏳ Empty';
+          console.log(`${status} - ${collection.name}: ${count} records (${collection.description})`);
+        }
       }
       
     } catch (error) {

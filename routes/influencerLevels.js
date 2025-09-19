@@ -3,10 +3,13 @@ const router = express.Router();
 const InfluencerLevel = require('../models/InfluencerLevel');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 
+// Create an instance of InfluencerLevel
+const influencerLevel = new InfluencerLevel();
+
 // Get all influencer levels
 router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const levels = await InfluencerLevel.getAllLevels();
+    const levels = await influencerLevel.getAllLevels();
     
     res.json({
       success: true,
@@ -25,7 +28,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
 // Get influencer levels with statistics
 router.get('/stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const levels = await InfluencerLevel.getLevelStats();
+    const levels = await influencerLevel.getLevelStats();
     
     res.json({
       success: true,
@@ -44,7 +47,7 @@ router.get('/stats', verifyToken, requireAdmin, async (req, res) => {
 // Get influencer statistics
 router.get('/influencer-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const stats = await InfluencerLevel.getInfluencerStats();
+    const stats = await influencerLevel.getInfluencerStats();
     
     res.json({
       success: true,
@@ -63,7 +66,7 @@ router.get('/influencer-stats', verifyToken, requireAdmin, async (req, res) => {
 // Get promotion candidates
 router.get('/promotion-candidates', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const candidates = await InfluencerLevel.getPromotionCandidates();
+    const candidates = await influencerLevel.getPromotionCandidates();
     
     res.json({
       success: true,
@@ -82,7 +85,7 @@ router.get('/promotion-candidates', verifyToken, requireAdmin, async (req, res) 
 // Get influencer level by ID
 router.get('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const level = await InfluencerLevel.findById(req.params.id);
+    const level = await influencerLevel.findById(req.params.id);
     
     if (!level) {
       return res.status(404).json({
@@ -108,7 +111,7 @@ router.get('/:id', verifyToken, requireAdmin, async (req, res) => {
 // Create new influencer level
 router.post('/', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const level = await InfluencerLevel.createInfluencerLevel(req.body);
+    const level = await influencerLevel.createInfluencerLevel(req.body);
     
     res.status(201).json({
       success: true,
@@ -128,7 +131,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
 // Update influencer level
 router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const level = await InfluencerLevel.updateInfluencerLevel(req.params.id, req.body);
+    const level = await influencerLevel.updateInfluencerLevel(req.params.id, req.body);
     
     res.json({
       success: true,
@@ -148,7 +151,7 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
 // Deactivate influencer level
 router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
-    await InfluencerLevel.deactivateLevel(req.params.id);
+    await influencerLevel.deactivateLevel(req.params.id);
     
     res.json({
       success: true,

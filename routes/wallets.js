@@ -200,12 +200,20 @@ router.post('/:userId/points/add', [
     await User.updatePointsBalance(userId, amount);
 
     // Create notification
-    await Notification.createUserNotification(
-      userId,
-      'Points Added',
-      `${amount} points have been added to your wallet. Reason: ${reason}`,
-      'points_added'
-    );
+    const notificationModel = new Notification();
+    await notificationModel.create({
+      title: 'Points Added',
+      message: `${amount} points have been added to your wallet. Reason: ${reason}`,
+      type: 'success',
+      category: 'points',
+      priority: 'normal',
+      recipients: [{
+        user: userId,
+        delivery_status: 'delivered'
+      }],
+      created_by: userId,
+      created_at: new Date()
+    });
 
     res.json({
       success: true,
@@ -274,12 +282,20 @@ router.post('/:userId/points/deduct', [
     await User.updatePointsBalance(userId, -amount);
 
     // Create notification
-    await Notification.createUserNotification(
-      userId,
-      'Points Deducted',
-      `${amount} points have been deducted from your wallet. Reason: ${reason}`,
-      'points_deducted'
-    );
+    const notificationModel = new Notification();
+    await notificationModel.create({
+      title: 'Points Deducted',
+      message: `${amount} points have been deducted from your wallet. Reason: ${reason}`,
+      type: 'info',
+      category: 'points',
+      priority: 'normal',
+      recipients: [{
+        user: userId,
+        delivery_status: 'delivered'
+      }],
+      created_by: userId,
+      created_at: new Date()
+    });
 
     res.json({
       success: true,
@@ -348,12 +364,20 @@ router.post('/:userId/cashback/add', [
     await CashbackTransaction.create(transactionData);
 
     // Create notification
-    await Notification.createUserNotification(
-      userId,
-      'Cashback Added',
-      `R$ ${amount.toFixed(2)} cashback has been added to your wallet. Reason: ${reason}`,
-      'cashback_added'
-    );
+    const notificationModel = new Notification();
+    await notificationModel.create({
+      title: 'Cashback Added',
+      message: `R$ ${amount.toFixed(2)} cashback has been added to your wallet. Reason: ${reason}`,
+      type: 'success',
+      category: 'points',
+      priority: 'normal',
+      recipients: [{
+        user: userId,
+        delivery_status: 'delivered'
+      }],
+      created_by: userId,
+      created_at: new Date()
+    });
 
     res.json({
       success: true,
@@ -432,12 +456,20 @@ router.post('/:userId/cashback/withdraw', [
     await CashbackTransaction.create(transactionData);
 
     // Create notification
-    await Notification.createUserNotification(
-      userId,
-      'Cashback Withdrawal',
-      `R$ ${amount.toFixed(2)} cashback withdrawal request submitted. Reason: ${reason}`,
-      'cashback_withdrawal'
-    );
+    const notificationModel = new Notification();
+    await notificationModel.create({
+      title: 'Cashback Withdrawal',
+      message: `R$ ${amount.toFixed(2)} cashback withdrawal request submitted. Reason: ${reason}`,
+      type: 'info',
+      category: 'points',
+      priority: 'normal',
+      recipients: [{
+        user: userId,
+        delivery_status: 'delivered'
+      }],
+      created_by: userId,
+      created_at: new Date()
+    });
 
     res.json({
       success: true,

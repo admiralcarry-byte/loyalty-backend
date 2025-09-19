@@ -297,12 +297,20 @@ class ReconciliationService {
       });
 
       // Create notification
-      await Notification.createUserNotification(
-        scanUpload.userId,
-        'Receipt Automatically Reconciled',
-        `Your receipt for R$ ${scanUpload.amount.toFixed(2)} has been automatically reconciled. You earned ${points} points and R$ ${cashback.toFixed(2)} cashback.`,
-        'receipt_reconciled'
-      );
+      const notificationModel = new Notification();
+      await notificationModel.create({
+        title: 'Receipt Automatically Reconciled',
+        message: `Your receipt for R$ ${scanUpload.amount.toFixed(2)} has been automatically reconciled. You earned ${points} points and R$ ${cashback.toFixed(2)} cashback.`,
+        type: 'success',
+        category: 'billing',
+        priority: 'normal',
+        recipients: [{
+          user: scanUpload.userId,
+          delivery_status: 'delivered'
+        }],
+        created_by: scanUpload.userId, // Add required created_by field
+        created_at: new Date()
+      });
 
       // Log audit trail
       await AuditLog.create({
@@ -568,7 +576,15 @@ class ReconciliationService {
       if (invoice.pointsAwarded === 0 && invoice.cashbackAwarded === 0) {
         const points = Math.floor(invoice.amount * 0.1);
         const cashback = invoice.amount * 0.02;
-        const commission = invoice.amount * 0.01; // 1% commission
+        
+        // Get commission settings that were active at the time of the invoice
+        const CommissionSettings = require('../models/CommissionSettings');
+        const commissionSettingsModel = new CommissionSettings();
+        const commissionSettings = await commissionSettingsModel.model.getSettingsAtTime(invoice.createdAt);
+        
+        // Calculate commission based on settings (using lead tier as default for reconciliation)
+        const baseCommissionRate = commissionSettings.base_commission_rate || 5.0;
+        const commission = (invoice.amount * baseCommissionRate) / 100;
 
         await invoice.awardPointsAndCashback(points, cashback, commission);
 

@@ -74,12 +74,12 @@ class CommissionSettingsController {
         commission_cap: parseFloat(commission_cap)
       };
 
-      const newSettings = await commissionSettingsModel.model.createNewSettings(settingsData, userId);
+      const updatedSettings = await commissionSettingsModel.model.updateCurrentSettings(settingsData, userId);
       
       res.json({
         success: true,
-        data: newSettings,
-        message: 'Commission settings saved successfully'
+        data: updatedSettings,
+        message: 'Commission settings updated successfully'
       });
     } catch (error) {
       console.error('Error saving commission settings:', error);

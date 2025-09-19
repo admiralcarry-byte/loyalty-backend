@@ -21,14 +21,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'water',
         type: 'bottle',
         size: '500ml',
-        price: 2.50,
+        price: {
+          current: 2.50,
+          original: 2.50,
+          wholesale: 2.00,
+          bulk: 1.80
+        },
         cost: 1.20,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 1000,
-        min_stock_level: 100,
-        max_stock_level: 2000,
+        inventory: {
+          quantity: 1000,
+          reserved: 0,
+          minimum_stock: 100,
+          reorder_point: 50,
+          max_stock: 2000
+        },
         weight: 0.6,
         dimensions: {
           length: 8.5,
@@ -63,14 +71,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'water',
         type: 'bottle',
         size: '1L',
-        price: 4.00,
+        price: {
+          current: 4.00,
+          original: 4.00,
+          wholesale: 3.20,
+          bulk: 2.80
+        },
         cost: 1.80,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 800,
-        min_stock_level: 150,
-        max_stock_level: 1500,
+        inventory: {
+          quantity: 800,
+          reserved: 0,
+          minimum_stock: 150,
+          reorder_point: 75,
+          max_stock: 1500
+        },
         weight: 1.1,
         dimensions: {
           length: 10.0,
@@ -105,14 +121,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'water',
         type: 'bottle',
         size: '5L',
-        price: 15.00,
+        price: {
+          current: 15.00,
+          original: 15.00,
+          wholesale: 12.00,
+          bulk: 10.00
+        },
         cost: 6.50,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 300,
-        min_stock_level: 50,
-        max_stock_level: 500,
+        inventory: {
+          quantity: 300,
+          reserved: 0,
+          minimum_stock: 50,
+          reorder_point: 25,
+          max_stock: 500
+        },
         weight: 5.2,
         dimensions: {
           length: 20.0,
@@ -147,14 +171,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'water',
         type: 'bottle',
         size: '1.5L',
-        price: 5.50,
+        price: {
+          current: 5.50,
+          original: 5.50,
+          wholesale: 4.40,
+          bulk: 3.80
+        },
         cost: 2.30,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 600,
-        min_stock_level: 100,
-        max_stock_level: 1000,
+        inventory: {
+          quantity: 600,
+          reserved: 0,
+          minimum_stock: 100,
+          reorder_point: 50,
+          max_stock: 1000
+        },
         weight: 1.6,
         dimensions: {
           length: 12.0,
@@ -189,14 +221,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'water',
         type: 'bottle',
         size: '500ml',
-        price: 3.50,
+        price: {
+          current: 3.50,
+          original: 3.50,
+          wholesale: 2.80,
+          bulk: 2.40
+        },
         cost: 1.60,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 400,
-        min_stock_level: 75,
-        max_stock_level: 800,
+        inventory: {
+          quantity: 400,
+          reserved: 0,
+          minimum_stock: 75,
+          reorder_point: 38,
+          max_stock: 800
+        },
         weight: 0.6,
         dimensions: {
           length: 8.5,
@@ -232,14 +272,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'subscription',
         type: 'service',
         size: 'monthly',
-        price: 25.00,
+        price: {
+          current: 25.00,
+          original: 25.00,
+          wholesale: 20.00,
+          bulk: 17.50
+        },
         cost: 12.00,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 9999,
-        min_stock_level: 0,
-        max_stock_level: 9999,
+        inventory: {
+          quantity: 9999,
+          reserved: 0,
+          minimum_stock: 0,
+          reorder_point: 0,
+          max_stock: 9999
+        },
         weight: 0,
         dimensions: {
           length: 0,
@@ -273,14 +321,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'service',
         type: 'exchange',
         size: 'per_bottle',
-        price: 0.50,
+        price: {
+          current: 0.50,
+          original: 0.50,
+          wholesale: 0.40,
+          bulk: 0.35
+        },
         cost: 0.00,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 9999,
-        min_stock_level: 0,
-        max_stock_level: 9999,
+        inventory: {
+          quantity: 9999,
+          reserved: 0,
+          minimum_stock: 0,
+          reorder_point: 0,
+          max_stock: 9999
+        },
         weight: 0,
         dimensions: {
           length: 0,
@@ -314,14 +370,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'water',
         type: 'bottle',
         size: '750ml',
-        price: 3.00,
+        price: {
+          current: 3.00,
+          original: 3.00,
+          wholesale: 2.40,
+          bulk: 2.10
+        },
         cost: 1.40,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 500,
-        min_stock_level: 100,
-        max_stock_level: 1000,
+        inventory: {
+          quantity: 500,
+          reserved: 0,
+          minimum_stock: 100,
+          reorder_point: 50,
+          max_stock: 1000
+        },
         weight: 0.8,
         dimensions: {
           length: 9.0,
@@ -356,14 +420,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'water',
         type: 'bottle',
         size: '250ml',
-        price: 1.50,
+        price: {
+          current: 1.50,
+          original: 1.50,
+          wholesale: 1.20,
+          bulk: 1.05
+        },
         cost: 0.70,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 800,
-        min_stock_level: 150,
-        max_stock_level: 1500,
+        inventory: {
+          quantity: 800,
+          reserved: 0,
+          minimum_stock: 150,
+          reorder_point: 75,
+          max_stock: 1500
+        },
         weight: 0.3,
         dimensions: {
           length: 6.0,
@@ -398,14 +470,22 @@ class ProductSeeder extends BaseSeeder {
         category: 'water',
         type: 'bottle',
         size: '2L',
-        price: 6.00,
+        price: {
+          current: 6.00,
+          original: 6.00,
+          wholesale: 4.80,
+          bulk: 4.20
+        },
         cost: 2.80,
         currency: 'USD',
         status: 'active',
-        in_stock: true,
-        stock_quantity: 200,
-        min_stock_level: 50,
-        max_stock_level: 400,
+        inventory: {
+          quantity: 200,
+          reserved: 0,
+          minimum_stock: 50,
+          reorder_point: 25,
+          max_stock: 400
+        },
         weight: 2.1,
         dimensions: {
           length: 15.0,

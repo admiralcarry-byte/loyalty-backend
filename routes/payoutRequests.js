@@ -198,8 +198,8 @@ router.put('/:id/mark-paid', [
 // @desc    Get payout request statistics overview
 // @access  Private (Manager+)
 router.get('/stats/overview', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const payoutStats = await payoutRequestController.getPayoutStats();

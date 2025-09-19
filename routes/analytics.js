@@ -7,13 +7,13 @@ const {
   Store, 
   PointsTransaction, 
   CashbackTransaction, 
-  Commission, 
   OnlinePurchase,
   PurchaseEntry,
   Campaign,
   Notification
 } = require('../models');
 const { verifyToken, requireManager } = require('../middleware/auth');
+const DashboardController = require('../controllers/dashboardController');
 
 const router = express.Router();
 
@@ -42,8 +42,9 @@ router.get('/dashboard', [verifyToken, requireManager], async (req, res) => {
     // Get cashback statistics
     const cashbackStats = await CashbackTransaction.getCashbackStats(start_date, end_date);
 
-    // Get commission statistics
-    const commissionStats = await Commission.getCommissionStats(start_date, end_date);
+    // Get commission statistics from dashboard controller
+    const dashboardController = new DashboardController();
+    const commissionStats = await dashboardController.getCommissionStats();
 
     // Get online purchase statistics
     const onlinePurchaseStats = await OnlinePurchase.getOnlinePurchaseStats(start_date, end_date);
@@ -191,6 +192,54 @@ router.get('/users', [
   }
 });
 
+// @route   GET /api/analytics/revenue
+// @desc    Get revenue analytics
+// @access  Private (Manager+)
+router.get('/revenue', [
+  verifyToken,
+  requireManager,
+  query('start_date').optional().isISO8601().toDate(),
+  query('end_date').optional().isISO8601().toDate(),
+  query('group_by').optional().isIn(['day', 'week', 'month', 'year'])
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    const { start_date, end_date, group_by = 'month' } = req.query;
+
+    // Get revenue statistics
+    const revenueStats = await Sale.getRevenueStats(start_date, end_date, group_by);
+
+    // Get revenue by source
+    const revenueBySource = await Sale.getRevenueBySource(start_date, end_date);
+
+    // Get revenue trends
+    const revenueTrends = await Sale.getRevenueTrends(start_date, end_date, group_by);
+
+    res.json({
+      success: true,
+      data: {
+        revenueStats,
+        revenueBySource,
+        revenueTrends
+      }
+    });
+  } catch (error) {
+    console.error('Revenue analytics error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get revenue analytics'
+    });
+  }
+});
+
 // @route   GET /api/analytics/products
 // @desc    Get product analytics
 // @access  Private (Manager+)
@@ -334,11 +383,12 @@ router.get('/loyalty', [
     // Get top cashback earners
     const topCashbackEarners = await CashbackTransaction.getTopCashbackEarners(10, start_date, end_date);
 
-    // Get commission statistics
-    const commissionStats = await Commission.getCommissionStats(start_date, end_date);
+    // Get commission statistics from dashboard controller
+    const dashboardController = new DashboardController();
+    const commissionStats = await dashboardController.getCommissionStats();
 
-    // Get top earning influencers
-    const topEarningInfluencers = await Commission.getTopEarningInfluencers(10, start_date, end_date);
+    // Get top earning influencers from commission stats
+    const topEarningInfluencers = commissionStats.topInfluencers || [];
 
     res.json({
       success: true,

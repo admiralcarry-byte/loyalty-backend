@@ -8,13 +8,13 @@ const onlinePurchaseSchema = new mongoose.Schema({
     trim: true,
     uppercase: true
   },
-  user: {
+  user_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
   items: [{
-    product: {
+    product_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
       required: true
@@ -66,8 +66,9 @@ const onlinePurchaseSchema = new mongoose.Schema({
 });
 
 // Index is automatically created by unique: true on order_number field
-onlinePurchaseSchema.index({ user: 1 });
-onlinePurchaseSchema.index({ status: 1 });
-onlinePurchaseSchema.index({ payment_status: 1 });
+onlinePurchaseSchema.index({ user_id: 1, created_at: -1 });
+onlinePurchaseSchema.index({ status: 1, created_at: -1 });
+onlinePurchaseSchema.index({ payment_status: 1, created_at: -1 });
+onlinePurchaseSchema.index({ created_at: -1 });
 
 module.exports = mongoose.model('OnlinePurchase', onlinePurchaseSchema); 

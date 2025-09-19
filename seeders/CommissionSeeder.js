@@ -10,8 +10,8 @@ class CommissionSeeder extends BaseSeeder {
     
     const existingCount = await this.getExistingCount('commissions');
     if (existingCount > 0) {
-      console.log(`ℹ️  Commissions collection already has ${existingCount} records. Skipping.`);
-      return;
+      console.log(`ℹ️  Commissions collection already has ${existingCount} records. Clearing first...`);
+      await this.clearCollection('commissions');
     }
 
     // Get user and sale IDs for relationships
@@ -26,7 +26,7 @@ class CommissionSeeder extends BaseSeeder {
     const influencerUsers = users.filter(u => u.role === 'influencer');
     const commissions = [];
 
-    // Generate commissions for influencer sales
+    // Generate exactly 10 commissions
     for (let i = 0; i < 10; i++) {
       const randomInfluencer = influencerUsers[Math.floor(Math.random() * influencerUsers.length)];
       const randomSale = sales[Math.floor(Math.random() * sales.length)];
@@ -35,27 +35,39 @@ class CommissionSeeder extends BaseSeeder {
       const commissionAmount = randomSale.total_amount * commissionRate;
       
       const commission = {
-        user_id: randomInfluencer._id,
-        sale_id: randomSale._id,
+        user: randomInfluencer._id,
+        sale: randomSale._id,
         commission_number: `COMM${Date.now()}${i.toString().padStart(3, '0')}`,
-        commission_type: 'sale_referral',
-        commission_rate: commissionRate,
-        commission_amount: commissionAmount,
+        type: 'sale_commission',
+        rate: commissionRate * 100, // Convert to percentage
+        amount: commissionAmount,
         base_amount: randomSale.total_amount,
         currency: 'USD',
         status: ['pending', 'approved', 'paid'][Math.floor(Math.random() * 3)],
-        payment_method: ['bank_transfer', 'mobile_money', 'cash'][Math.floor(Math.random() * 3)],
-        payment_reference: `PAY${Date.now()}${i.toString().padStart(3, '0')}`,
-        payment_date: Math.random() > 0.5 ? new Date(Date.now() - (Math.random() * 30 * 24 * 60 * 60 * 1000)) : null,
+        calculation_details: {
+          sale_amount: randomSale.total_amount,
+          commission_rate: commissionRate * 100,
+          tier_multiplier: 1,
+          bonus_amount: 0,
+          deductions: 0
+        },
+        payment_details: {
+          payment_method: ['bank_transfer', 'mobile_money', 'cash'][Math.floor(Math.random() * 3)],
+          payment_reference: `PAY${Date.now()}${i.toString().padStart(3, '0')}`,
+          payment_date: Math.random() > 0.5 ? new Date(Date.now() - (Math.random() * 30 * 24 * 60 * 60 * 1000)) : null
+        },
+        schedule: {
+          due_date: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)), // 7 days from now
+          payment_date: Math.random() > 0.5 ? new Date(Date.now() - (Math.random() * 30 * 24 * 60 * 60 * 1000)) : null,
+          is_overdue: false
+        },
         notes: `Commission for sale ${randomSale.transaction_id}`,
         metadata: {
-          sale_date: randomSale.created_at || new Date(),
-          customer_id: randomSale.user_id,
-          product_quantity: randomSale.quantity,
-          loyalty_tier: randomSale.loyalty_tier_at_purchase
+          source: 'automatic',
+          sale_channel: 'in_store'
         },
-        created_at: new Date(Date.now() - (Math.random() * 30 * 24 * 60 * 60 * 1000)),
-        updated_at: new Date()
+        createdAt: new Date(Date.now() - (Math.random() * 30 * 24 * 60 * 60 * 1000)),
+        updatedAt: new Date()
       };
 
       commissions.push(commission);

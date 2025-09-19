@@ -25,7 +25,6 @@ module.exports = {
     const Setting = require('../schemas/Setting');
     const RefreshToken = require('../schemas/RefreshToken');
     const OnlinePurchase = require('../schemas/OnlinePurchase');
-    const OnlinePurchaseItem = require('../schemas/OnlinePurchaseItem');
     const ScanUpload = require('../schemas/ScanUpload');
     const BillingCompanyInvoice = require('../schemas/BillingCompanyInvoice');
     const BankDetails = require('../schemas/BankDetails');
@@ -51,11 +50,10 @@ module.exports = {
       { name: 'auditlogs', model: AuditLog },
       { name: 'cashbackrules', model: CashbackRule },
       { name: 'cashbacktransactions', model: CashbackTransaction },
-      { name: 'purchaseentries', model: PurchaseEntry },
+      { name: 'purchases', model: PurchaseEntry },
       { name: 'settings', model: Setting },
       { name: 'refreshtokens', model: RefreshToken },
       { name: 'onlinepurchases', model: OnlinePurchase },
-      { name: 'onlinepurchaseitems', model: OnlinePurchaseItem },
       { name: 'scanuploads', model: ScanUpload },
       { name: 'billingcompanyinvoice', model: BillingCompanyInvoice },
       { name: 'bank_details', model: BankDetails },
@@ -277,8 +275,8 @@ module.exports = {
     const collections = [
       'users', 'stores', 'sales', 'products', 'campaigns', 'commissions',
       'loyaltylevels', 'pointstransactions', 'notifications', 'auditlogs',
-      'cashbackrules', 'cashbacktransactions', 'purchaseentries', 'settings',
-      'refreshtokens', 'onlinepurchases', 'onlinepurchaseitems', 'scanuploads',
+      'cashbackrules', 'cashbacktransactions', 'purchases', 'settings',
+      'refreshtokens', 'onlinepurchases', 'scanuploads',
       'billingcompanyinvoice', 'bank_details', 'influencerlevels', 'ai_insights',
       'payoutrequests', 'activitylogs', 'general_settings', 'commissionrules',
       'commissionsettings'

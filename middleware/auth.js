@@ -12,7 +12,8 @@ const verifyToken = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        error: 'Access token required'
+        error: 'Access token required',
+        message: 'No authorization header provided'
       });
     }
 
@@ -21,12 +22,14 @@ const verifyToken = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        error: 'Access token required'
+        error: 'Access token required',
+        message: 'Token not provided in authorization header'
       });
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const jwtSecret = process.env.JWT_SECRET || 'aguatwezah_super_secret_jwt_key_2024';
+    const decoded = jwt.verify(token, jwtSecret);
     
     // Get user from database
     const user = await userModel.findById(decoded.userId);
@@ -34,7 +37,8 @@ const verifyToken = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        error: 'User not found'
+        error: 'User not found',
+        message: 'User associated with token does not exist'
       });
     }
 
@@ -42,7 +46,8 @@ const verifyToken = async (req, res, next) => {
     if (user.status !== 'active') {
       return res.status(401).json({
         success: false,
-        error: 'Account is not active'
+        error: 'Account is not active',
+        message: `Account status: ${user.status}`
       });
     }
 
@@ -52,21 +57,24 @@ const verifyToken = async (req, res, next) => {
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
         success: false,
-        error: 'Invalid token'
+        error: 'Invalid token',
+        message: 'Token format is invalid or corrupted'
       });
     }
     
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        error: 'Token expired'
+        error: 'Token expired',
+        message: 'Please refresh your session or log in again'
       });
     }
 
     console.error('Auth middleware error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Authentication error'
+      error: 'Authentication error',
+      message: 'Internal server error during authentication'
     });
   }
 };

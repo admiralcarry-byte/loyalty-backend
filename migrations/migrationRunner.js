@@ -220,11 +220,11 @@ class MigrationRunner {
     }
   }
 
-  async runSeeding() {
+  async runSeeding(minimalMode = true) {
     try {
       // Import and run the SeederRunner
       const SeederRunner = require('../seeders/SeederRunner');
-      const seederRunner = new SeederRunner();
+      const seederRunner = new SeederRunner(minimalMode);
       
       // Run seeding without the connection management (since we're already connected)
       await seederRunner.runSeeders();

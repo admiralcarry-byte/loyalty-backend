@@ -7,19 +7,6 @@ const storeSchema = new mongoose.Schema({
     trim: true,
     maxlength: 200
   },
-  code: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    uppercase: true,
-    maxlength: 20
-  },
-  type: {
-    type: String,
-    enum: ['retail', 'wholesale', 'distributor', 'online'],
-    default: 'retail'
-  },
   status: {
     type: String,
     enum: ['active', 'inactive', 'suspended'],
@@ -47,7 +34,13 @@ const storeSchema = new mongoose.Schema({
     postal_code: {
       type: String,
       trim: true,
-      maxlength: 20
+      maxlength: 20,
+      validate: {
+        validator: function(v) {
+          return /^\d+$/.test(v);
+        },
+        message: 'Postal code must contain only numbers (store number)'
+      }
     },
     country: {
       type: String,
@@ -55,23 +48,6 @@ const storeSchema = new mongoose.Schema({
       trim: true,
       maxlength: 100,
       default: 'Ghana'
-    }
-  },
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point'
-    },
-    coordinates: {
-      type: [Number],
-      required: true,
-      validate: {
-        validator: function(v) {
-          return v.length === 2 && v[0] >= -180 && v[0] <= 180 && v[1] >= -90 && v[1] <= 90;
-        },
-        message: 'Coordinates must be valid longitude and latitude values'
-      }
     }
   },
   contact: {
@@ -85,11 +61,6 @@ const storeSchema = new mongoose.Schema({
       trim: true,
       lowercase: true,
       match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
-    },
-    website: {
-      type: String,
-      trim: true,
-      maxlength: 200
     }
   },
   manager: {
@@ -107,43 +78,6 @@ const storeSchema = new mongoose.Schema({
       type: String,
       trim: true,
       lowercase: true
-    }
-  },
-  operating_hours: {
-    monday: {
-      open: String,
-      close: String,
-      closed: { type: Boolean, default: false }
-    },
-    tuesday: {
-      open: String,
-      close: String,
-      closed: { type: Boolean, default: false }
-    },
-    wednesday: {
-      open: String,
-      close: String,
-      closed: { type: Boolean, default: false }
-    },
-    thursday: {
-      open: String,
-      close: String,
-      closed: { type: Boolean, default: false }
-    },
-    friday: {
-      open: String,
-      close: String,
-      closed: { type: Boolean, default: false }
-    },
-    saturday: {
-      open: String,
-      close: String,
-      closed: { type: Boolean, default: false }
-    },
-    sunday: {
-      open: String,
-      close: String,
-      closed: { type: Boolean, default: false }
     }
   },
   services: [{
@@ -245,16 +179,6 @@ storeSchema.virtual('full_address').get(function() {
 });
 
 // Virtual for is_open
-storeSchema.virtual('is_open').get(function() {
-  const now = new Date();
-  const day = now.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
-  const time = now.toTimeString().slice(0, 5);
-  
-  const today = this.operating_hours[day];
-  if (!today || today.closed) return false;
-  
-  return time >= today.open && time <= today.close;
-});
 
 // Pre-save middleware to generate store code if not provided
 storeSchema.pre('save', function(next) {
@@ -266,7 +190,8 @@ storeSchema.pre('save', function(next) {
 
 // Instance method to generate store code
 storeSchema.methods.generateStoreCode = function() {
-  const prefix = this.type.slice(0, 2).toUpperCase();
+  // Use store name prefix or default to 'ST' if name is not available
+  const prefix = this.name ? this.name.slice(0, 2).toUpperCase() : 'ST';
   const timestamp = Date.now().toString().slice(-6);
   return `${prefix}${timestamp}`;
 };

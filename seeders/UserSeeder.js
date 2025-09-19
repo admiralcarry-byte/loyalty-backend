@@ -10,8 +10,8 @@ class UserSeeder extends BaseSeeder {
     
     const existingCount = await this.getExistingCount('users');
     if (existingCount > 0) {
-      console.log(`ℹ️  Users collection already has ${existingCount} records. Skipping.`);
-      return;
+      console.log(`ℹ️  Users collection already has ${existingCount} records. Clearing first...`);
+      await this.clearCollection('users');
     }
 
     const users = [
@@ -223,6 +223,49 @@ class UserSeeder extends BaseSeeder {
         verification: {
           email_verified: true,
           phone_verified: false
+        },
+        security: {
+          two_factor_enabled: false,
+          login_attempts: 0,
+          password_changed_at: new Date()
+        }
+      },
+      {
+        username: 'kevin_customer',
+        email: 'kevin@example.com',
+        password_hash: await bcrypt.hash('customer123', 12),
+        first_name: 'Kevin',
+        last_name: 'Customer',
+        phone: '8990989899',
+        role: 'customer',
+        status: 'active',
+        loyalty_tier: 'lead',
+        points_balance: 0,
+        liter_balance: 0,
+        total_purchases: 0,
+        total_liters: 0,
+        total_points_earned: 0,
+        total_points_spent: 0,
+        last_login: new Date(),
+        address: {
+          street: 'Test Street, 123',
+          city: 'Test City',
+          state: 'Test State',
+          postal_code: '12345',
+          country: 'Test Country'
+        },
+        preferences: {
+          notifications: {
+            email: true,
+            sms: true,
+            push: true
+          },
+          language: 'en',
+          timezone: 'UTC'
+        },
+        verification: {
+          email_verified: true,
+          phone_verified: true
         },
         security: {
           two_factor_enabled: false,

@@ -1,129 +1,83 @@
-#!/usr/bin/env node
-
-const SeederRunner = require('../seeders/SeederRunner');
+const mongoose = require('mongoose');
 const path = require('path');
 
-// Get command line arguments
-const args = process.argv.slice(2);
-const command = args[0];
+// Import only the seeders we need (minimal set for active pages)
+const UserSeeder = require('../seeders/UserSeeder');
+const StoreSeeder = require('../seeders/StoreSeeder');
+const LoyaltyLevelSeeder = require('../seeders/LoyaltyLevelSeeder');
+const InfluencerLevelSeeder = require('../seeders/InfluencerLevelSeeder');
+const SaleSeeder = require('../seeders/SaleSeeder');
 
-async function main() {
-  const runner = new SeederRunner();
+// Database configuration
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/aguatwezah_admin';
 
+async function runSeeders() {
   try {
-    switch (command) {
-      case 'seed':
-      case 'run':
-        console.log('🌱 Running database seeding...\n');
-        await runner.seed();
-        break;
+    console.log('🚀 Starting database seeding...');
+    console.log(`📡 Connecting to MongoDB: ${MONGODB_URI}`);
 
-      case 'status':
-        console.log('📊 Checking seeding status...\n');
-        await runner.getSeedingStatus();
-        break;
+    // Configure mongoose to prevent auto-creation
+    mongoose.set('autoCreate', false);
+    mongoose.set('autoIndex', false);
+    
+    // Connect to MongoDB
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
 
-      case 'clear':
-        console.log('🗑️  Clearing seeded data...\n');
-        console.log('This will delete all seeded data from the database!');
-        console.log('Type "yes" to confirm, or press Ctrl+C to cancel.');
-        
-        // Wait for user confirmation
-        const readline = require('readline');
-        const rl = readline.createInterface({
-          input: process.stdin,
-          output: process.stdout
-        });
+    console.log('✅ Connected to MongoDB successfully');
 
-        const answer = await new Promise((resolve) => {
-          rl.question('Are you sure? (yes/no): ', resolve);
-        });
-        
-        rl.close();
+    // Define seeder order (dependencies matter) - only essential collections for active pages
+    const seeders = [
+      new LoyaltyLevelSeeder(),
+      new InfluencerLevelSeeder(),
+      new UserSeeder(),
+      new StoreSeeder(),
+      new SaleSeeder()
+    ];
 
-        if (answer.toLowerCase() === 'yes') {
-          await runner.clearAll();
-        } else {
-          console.log('❌ Seeding clear cancelled');
-        }
-        break;
-
-      case 'help':
-      case '--help':
-      case '-h':
-        showHelp();
-        break;
-
-      default:
-        console.error(`❌ Unknown command: ${command}`);
-        showHelp();
-        process.exit(1);
+    // Run seeders in sequence
+    for (const seeder of seeders) {
+      console.log(`\n🌱 Running ${seeder.constructor.name} seeder...`);
+      await seeder.run();
+      console.log(`✅ ${seeder.constructor.name} seeder completed`);
     }
+
+    console.log('\n🎉 All seeders completed successfully!');
+    console.log('\n📊 Database Summary:');
+    console.log('- 4 Loyalty Levels (Lead, Silver, Gold, Platinum)');
+    console.log('- 3 Influencer Levels (Silver, Gold, Platinum)');
+    console.log('- 10 Users (admin, managers, customers, influencers)');
+    console.log('- 10 Stores (retail locations)');
+    console.log('- 10 Sales transactions');
+    console.log('\n🔑 Admin login credentials:');
+    console.log('   Email: admin@aguatwezah.com');
+    console.log('   Password: admin123');
+
   } catch (error) {
-    console.error('❌ Seeding command failed:', error.message);
+    console.error('❌ Seeding failed:', error);
     process.exit(1);
+  } finally {
+    // Close database connection
+    await mongoose.connection.close();
+    console.log('🔌 Database connection closed');
+    process.exit(0);
   }
 }
 
-function showHelp() {
-  console.log(`
-Database Seeding Tool for ÁGUA TWEZAH Admin System
-
-Usage: npm run seed <command> [options]
-
-Commands:
-  seed, run       Run all seeders to populate database with sample data
-  status          Show seeding status for all collections
-  clear           Clear all seeded data from database
-  help            Show this help message
-
-Examples:
-  npm run seed
-  npm run seed:status
-  npm run seed:clear
-
-What gets seeded:
-  - General Settings (company configuration)
-  - Settings (system configuration)
-  - Loyalty Levels (customer tiers)
-  - Influencer Levels (influencer tiers)
-  - Users (admin, managers, customers, influencers)
-  - Stores (retail, wholesale, online, mobile locations)
-  - Products (water bottles, subscriptions, services)
-  - Campaigns (promotional, onboarding, referral campaigns)
-  - Sales (customer and influencer transactions)
-  - Points Transactions (earned, spent, bonus, referral points)
-  - Commissions (influencer earnings)
-  - Cashback Rules (discount rules)
-  - Cashback Transactions (discount applications)
-  - Purchase Entries (manual entries)
-  - Online Purchases (e-commerce orders)
-  - Online Purchase Items (order items)
-  - Payout Requests (commission payouts)
-  - Bank Details (user banking info)
-  - Scan Uploads (receipt processing)
-  - Billing Company Invoices (company billing)
-  - Activity Logs (user activities)
-  - Audit Logs (system changes)
-  - Notifications (user notifications)
-  - Refresh Tokens (session management)
-  - AI Insights (analytics insights)
-
-Environment Variables:
-  MONGODB_URI     MongoDB connection string (default: mongodb://localhost:27017/aguatwezah_admin)
-`);
-}
-
-// Handle uncaught errors
-process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error.message);
-  process.exit(1);
+// Handle process termination
+process.on('SIGINT', async () => {
+  console.log('\n⚠️  Seeding interrupted by user');
+  await mongoose.connection.close();
+  process.exit(0);
 });
 
-process.on('unhandledRejection', (error) => {
-  console.error('❌ Unhandled Rejection:', error.message);
-  process.exit(1);
+process.on('SIGTERM', async () => {
+  console.log('\n⚠️  Seeding terminated');
+  await mongoose.connection.close();
+  process.exit(0);
 });
 
-// Run the main function
-main();
+// Run the seeders
+runSeeders();

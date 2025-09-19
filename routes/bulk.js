@@ -15,6 +15,108 @@ const { verifyToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
+// @route   POST /api/bulk/users
+// @desc    Bulk create users
+// @access  Private (Admin only)
+router.post('/users', [
+  verifyToken, 
+  requireAdmin,
+  body('users').isArray().withMessage('Users must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { users } = req.body;
+    const results = await User.bulkCreate(users);
+
+    res.json({
+      success: true,
+      message: 'Users created successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk create users error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create users'
+    });
+  }
+});
+
+// @route   PUT /api/bulk/users
+// @desc    Bulk update users
+// @access  Private (Admin only)
+router.put('/users', [
+  verifyToken, 
+  requireAdmin,
+  body('users').isArray().withMessage('Users must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { users } = req.body;
+    const results = await User.bulkUpdate(users);
+
+    res.json({
+      success: true,
+      message: 'Users updated successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk update users error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update users'
+    });
+  }
+});
+
+// @route   DELETE /api/bulk/users
+// @desc    Bulk delete users
+// @access  Private (Admin only)
+router.delete('/users', [
+  verifyToken, 
+  requireAdmin,
+  body('user_ids').isArray().withMessage('User IDs must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { user_ids } = req.body;
+    const results = await User.bulkDelete(user_ids);
+
+    res.json({
+      success: true,
+      message: 'Users deleted successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk delete users error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete users'
+    });
+  }
+});
+
 // @route   POST /api/bulk/users/update
 // @desc    Bulk update users (status, role, tier, etc.)
 // @access  Private (Admin only)
@@ -412,7 +514,20 @@ router.post('/notifications/send', [
     // Send notification to each user using Notification model
     for (const userId of user_ids) {
       try {
-        await Notification.createUserNotification(userId, title, message, type, priority);
+        const notificationModel = new Notification();
+        await notificationModel.create({
+          title: title,
+          message: message,
+          type: type || 'info',
+          category: 'general',
+          priority: priority || 'normal',
+          recipients: [{
+            user: userId,
+            delivery_status: 'delivered'
+          }],
+          created_by: userId,
+          created_at: new Date()
+        });
         sentCount++;
       } catch (error) {
         console.error(`Failed to send notification to user ${userId}:`, error);
@@ -443,6 +558,414 @@ router.post('/notifications/send', [
     res.status(500).json({
       success: false,
       error: 'Failed to bulk send notifications'
+    });
+  }
+});
+
+// @route   POST /api/bulk/stores
+// @desc    Bulk create stores
+// @access  Private (Admin only)
+router.post('/stores', [
+  verifyToken, 
+  requireAdmin,
+  body('stores').isArray().withMessage('Stores must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { stores } = req.body;
+    const results = await Store.bulkCreate(stores);
+
+    res.json({
+      success: true,
+      message: 'Stores created successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk create stores error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create stores'
+    });
+  }
+});
+
+// @route   PUT /api/bulk/stores
+// @desc    Bulk update stores
+// @access  Private (Admin only)
+router.put('/stores', [
+  verifyToken, 
+  requireAdmin,
+  body('stores').isArray().withMessage('Stores must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { stores } = req.body;
+    const results = await Store.bulkUpdate(stores);
+
+    res.json({
+      success: true,
+      message: 'Stores updated successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk update stores error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update stores'
+    });
+  }
+});
+
+// @route   DELETE /api/bulk/stores
+// @desc    Bulk delete stores
+// @access  Private (Admin only)
+router.delete('/stores', [
+  verifyToken, 
+  requireAdmin,
+  body('store_ids').isArray().withMessage('Store IDs must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { store_ids } = req.body;
+    const results = await Store.bulkDelete(store_ids);
+
+    res.json({
+      success: true,
+      message: 'Stores deleted successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk delete stores error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete stores'
+    });
+  }
+});
+
+// @route   POST /api/bulk/sales
+// @desc    Bulk create sales
+// @access  Private (Admin only)
+router.post('/sales', [
+  verifyToken, 
+  requireAdmin,
+  body('sales').isArray().withMessage('Sales must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { sales } = req.body;
+    const results = await Sale.bulkCreate(sales);
+
+    res.json({
+      success: true,
+      message: 'Sales created successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk create sales error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create sales'
+    });
+  }
+});
+
+// @route   PUT /api/bulk/sales
+// @desc    Bulk update sales
+// @access  Private (Admin only)
+router.put('/sales', [
+  verifyToken, 
+  requireAdmin,
+  body('sales').isArray().withMessage('Sales must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { sales } = req.body;
+    const results = await Sale.bulkUpdate(sales);
+
+    res.json({
+      success: true,
+      message: 'Sales updated successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk update sales error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update sales'
+    });
+  }
+});
+
+// @route   DELETE /api/bulk/sales
+// @desc    Bulk delete sales
+// @access  Private (Admin only)
+router.delete('/sales', [
+  verifyToken, 
+  requireAdmin,
+  body('sale_ids').isArray().withMessage('Sale IDs must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { sale_ids } = req.body;
+    const results = await Sale.bulkDelete(sale_ids);
+
+    res.json({
+      success: true,
+      message: 'Sales deleted successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk delete sales error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete sales'
+    });
+  }
+});
+
+// @route   POST /api/bulk/commissions
+// @desc    Bulk create commissions
+// @access  Private (Admin only)
+router.post('/commissions', [
+  verifyToken, 
+  requireAdmin,
+  body('commissions').isArray().withMessage('Commissions must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { commissions } = req.body;
+    const results = await Commission.bulkCreate(commissions);
+
+    res.json({
+      success: true,
+      message: 'Commissions created successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk create commissions error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create commissions'
+    });
+  }
+});
+
+// @route   PUT /api/bulk/commissions
+// @desc    Bulk update commissions
+// @access  Private (Admin only)
+router.put('/commissions', [
+  verifyToken, 
+  requireAdmin,
+  body('commissions').isArray().withMessage('Commissions must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { commissions } = req.body;
+    const results = await Commission.bulkUpdate(commissions);
+
+    res.json({
+      success: true,
+      message: 'Commissions updated successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk update commissions error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update commissions'
+    });
+  }
+});
+
+// @route   DELETE /api/bulk/commissions
+// @desc    Bulk delete commissions
+// @access  Private (Admin only)
+router.delete('/commissions', [
+  verifyToken, 
+  requireAdmin,
+  body('commission_ids').isArray().withMessage('Commission IDs must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { commission_ids } = req.body;
+    const results = await Commission.bulkDelete(commission_ids);
+
+    res.json({
+      success: true,
+      message: 'Commissions deleted successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk delete commissions error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete commissions'
+    });
+  }
+});
+
+// @route   POST /api/bulk/notifications
+// @desc    Bulk create notifications
+// @access  Private (Admin only)
+router.post('/notifications', [
+  verifyToken, 
+  requireAdmin,
+  body('notifications').isArray().withMessage('Notifications must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { notifications } = req.body;
+    const results = await Notification.bulkCreate(notifications);
+
+    res.json({
+      success: true,
+      message: 'Notifications created successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk create notifications error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create notifications'
+    });
+  }
+});
+
+// @route   PUT /api/bulk/notifications
+// @desc    Bulk update notifications
+// @access  Private (Admin only)
+router.put('/notifications', [
+  verifyToken, 
+  requireAdmin,
+  body('notifications').isArray().withMessage('Notifications must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { notifications } = req.body;
+    const results = await Notification.bulkUpdate(notifications);
+
+    res.json({
+      success: true,
+      message: 'Notifications updated successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk update notifications error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update notifications'
+    });
+  }
+});
+
+// @route   DELETE /api/bulk/notifications
+// @desc    Bulk delete notifications
+// @access  Private (Admin only)
+router.delete('/notifications', [
+  verifyToken, 
+  requireAdmin,
+  body('notification_ids').isArray().withMessage('Notification IDs must be an array')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { notification_ids } = req.body;
+    const results = await Notification.bulkDelete(notification_ids);
+
+    res.json({
+      success: true,
+      message: 'Notifications deleted successfully',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk delete notifications error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete notifications'
     });
   }
 });

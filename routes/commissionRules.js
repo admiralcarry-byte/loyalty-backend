@@ -60,8 +60,8 @@ const validateCommissionRule = [
 // @desc    Get all commission rules
 // @access  Private (Admin/Manager)
 router.get('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     await commissionRuleController.getAllRules(req, res);
@@ -77,8 +77,8 @@ router.get('/', [
 // @desc    Get commission rule by ID
 // @access  Private (Admin/Manager)
 router.get('/:id', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     await commissionRuleController.getRuleById(req, res);
@@ -94,8 +94,8 @@ router.get('/:id', [
 // @desc    Create new commission rule
 // @access  Private (Admin only)
 router.post('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireAdmin,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireAdmin,  // Re-enabled authorization
   ...validateCommissionRule
 ], async (req, res) => {
   try {
@@ -112,8 +112,8 @@ router.post('/', [
 // @desc    Update commission rule
 // @access  Private (Admin only)
 router.put('/:id', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireAdmin,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireAdmin,  // Re-enabled authorization
   ...validateCommissionRule
 ], async (req, res) => {
   try {
@@ -130,8 +130,8 @@ router.put('/:id', [
 // @desc    Delete commission rule
 // @access  Private (Admin only)
 router.delete('/:id', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireAdmin,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireAdmin,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     await commissionRuleController.deleteRule(req, res);
@@ -147,8 +147,8 @@ router.delete('/:id', [
 // @desc    Toggle commission rule active status
 // @access  Private (Admin/Manager)
 router.patch('/:id/toggle', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
   body('is_active')
     .isBoolean()
     .withMessage('is_active must be a boolean value')
@@ -167,8 +167,8 @@ router.patch('/:id/toggle', [
 // @desc    Calculate commission using active rules
 // @access  Private (Admin/Manager)
 router.post('/calculate', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
   body('salesAmount')
     .isFloat({ min: 0 })
     .withMessage('Sales amount must be a positive number'),

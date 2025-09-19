@@ -42,6 +42,34 @@ const scanUploadSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // OCR extracted data
+  ocrData: {
+    invoiceNumber: String,
+    storeName: String,
+    amount: Number,
+    currency: String,
+    date: Date,
+    paymentMethod: String,
+    customerName: String,
+    liters: Number,
+    phoneNumber: String,
+    email: String,
+    confidence: Number,
+    extractionMethod: String
+  },
+  // QR code extracted data
+  qrData: {
+    receiptId: String,
+    storeNumber: String,
+    amount: Number,
+    date: Date,
+    verificationCode: String,
+    customerId: String,
+    transactionId: String,
+    rawData: String,
+    confidence: Number,
+    extractionMethod: String
+  },
   reconciliationData: {
     matchedPurchaseEntry: {
       type: mongoose.Schema.Types.ObjectId,

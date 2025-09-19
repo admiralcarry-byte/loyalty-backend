@@ -7,7 +7,6 @@ const {
   Store, 
   PointsTransaction, 
   CashbackTransaction, 
-  Commission, 
   OnlinePurchase,
   PurchaseEntry,
   Campaign,
@@ -15,6 +14,7 @@ const {
   AuditLog
 } = require('../models');
 const { verifyToken, requireManager } = require('../middleware/auth');
+const DashboardController = require('../controllers/dashboardController');
 
 const router = express.Router();
 
@@ -22,23 +22,109 @@ const router = express.Router();
 // @desc    Get overview report data
 // @access  Private (Manager+) - Temporarily disabled for testing
 router.get('/overview', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
-    // For now, return empty data structure
+    // Use dashboard controller for consistent data
+    const dashboardController = require('../controllers/dashboardController');
+    const dashboardData = await dashboardController.getDashboardData();
+    
+    // Transform dashboard data to reports format
+    // Generate monthly stats for the last 6 months using real data
+    const currentDate = new Date();
+    const monthlyStats = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - i + 1, 1);
+      const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+      
+      // Query real sales data for this month
+      const saleModel = new Sale();
+      const salesData = await saleModel.model.aggregate([
+        {
+          $match: {
+            $or: [
+              { createdAt: { $gte: date, $lt: nextMonth } },
+              { created_at: { $gte: date, $lt: nextMonth } }
+            ],
+            status: 'completed'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalSales: { $sum: '$total_amount' },
+            salesCount: { $sum: 1 },
+            totalCommission: { $sum: '$commission.amount' },
+            totalCashback: { $sum: '$cashback_earned' }
+          }
+        }
+      ]);
+      
+      // Query real user registrations for this month
+      const userModel = new User();
+      const usersData = await userModel.model.aggregate([
+        {
+          $match: {
+            $or: [
+              { createdAt: { $gte: date, $lt: nextMonth } },
+              { created_at: { $gte: date, $lt: nextMonth } }
+            ],
+            role: { $in: ['user', 'customer', 'influencer'] }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            userCount: { $sum: 1 }
+          }
+        }
+      ]);
+      
+      // Commission data is already included in sales data (Commission table removed)
+      const sales = salesData[0] || { totalSales: 0, salesCount: 0, totalCommission: 0, totalCashback: 0 };
+      const users = usersData[0] || { userCount: 0 };
+      
+      monthlyStats.push({
+        month: monthName,
+        sales: Math.floor(sales.totalSales || 0),
+        users: users.userCount || 0,
+        commission: Math.floor(sales.totalCommission || 0),
+        revenue: Math.floor(sales.totalSales || 0),
+        cashback: Math.floor(sales.totalCashback || 0)
+      });
+    }
+    const tierDistribution = [
+      { name: "Lead", value: dashboardData.userStats.loyaltyDistribution.lead, color: "hsl(var(--accent))" },
+      { name: "Silver", value: dashboardData.userStats.loyaltyDistribution.silver, color: "hsl(var(--loyalty-silver))" },
+      { name: "Gold", value: dashboardData.userStats.loyaltyDistribution.gold, color: "hsl(var(--loyalty-gold))" },
+      { name: "Platinum", value: dashboardData.userStats.loyaltyDistribution.platinum, color: "hsl(var(--loyalty-platinum))" }
+    ];
+    const topInfluencers = (dashboardData.commissionStats?.topInfluencers || []).map(influencer => ({
+      name: influencer.name,
+      network: influencer.network,
+      sales: `$${(influencer.commission || 0).toLocaleString()}`,
+      commission: `$${(influencer.commission || 0).toLocaleString()}`,
+      tier: influencer.tier
+    }));
+    
     res.json({
       success: true,
       data: {
-        monthlyStats: [],
-        tierDistribution: [],
-        topInfluencers: []
+        monthlyStats,
+        tierDistribution,
+        topInfluencers
       }
     });
   } catch (error) {
+    console.error('Reports overview error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      details: error.stack
     });
   }
 });
@@ -47,15 +133,25 @@ router.get('/overview', [
 // @desc    Get loyalty report data
 // @access  Private (Manager+) - Temporarily disabled for testing
 router.get('/loyalty', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
-    // For now, return empty data structure
+    // Use dashboard controller for consistent data
+    const dashboardController = require('../controllers/dashboardController');
+    const dashboardData = await dashboardController.getDashboardData();
+    
+    const tierDistribution = [
+      { name: "Lead", value: dashboardData.userStats.loyaltyDistribution.lead, color: "hsl(var(--accent))" },
+      { name: "Silver", value: dashboardData.userStats.loyaltyDistribution.silver, color: "hsl(var(--loyalty-silver))" },
+      { name: "Gold", value: dashboardData.userStats.loyaltyDistribution.gold, color: "hsl(var(--loyalty-gold))" },
+      { name: "Platinum", value: dashboardData.userStats.loyaltyDistribution.platinum, color: "hsl(var(--loyalty-platinum))" }
+    ];
+    
     res.json({
       success: true,
       data: {
-        tierDistribution: []
+        tierDistribution
       }
     });
   } catch (error) {
@@ -70,15 +166,26 @@ router.get('/loyalty', [
 // @desc    Get influencer report data
 // @access  Private (Manager+) - Temporarily disabled for testing
 router.get('/influencers', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
-    // For now, return empty data structure
+    // Use dashboard controller for consistent data
+    const dashboardController = require('../controllers/dashboardController');
+    const dashboardData = await dashboardController.getDashboardData();
+    
+    const topInfluencers = (dashboardData.commissionStats?.topInfluencers || []).map(influencer => ({
+      name: influencer.name,
+      network: influencer.network,
+      sales: `$${(influencer.commission || 0).toLocaleString()}`,
+      commission: `$${(influencer.commission || 0).toLocaleString()}`,
+      tier: influencer.tier
+    }));
+    
     res.json({
       success: true,
       data: {
-        topInfluencers: []
+        topInfluencers
       }
     });
   } catch (error) {
@@ -93,8 +200,8 @@ router.get('/influencers', [
 // @desc    Generate sales reports
 // @access  Private (Manager+)
 router.get('/sales', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
   query('start_date').optional().isISO8601().toDate(),
   query('end_date').optional().isISO8601().toDate(),
   query('group_by').optional().isIn(['day', 'week', 'month', 'year']),
@@ -372,11 +479,12 @@ router.get('/loyalty', [
     // Get top cashback earners
     const topCashbackEarners = await CashbackTransaction.getTopCashbackEarners(10, start_date, end_date);
 
-    // Get commission statistics using Commission model
-    const commissionStats = await Commission.getCommissionStats(start_date, end_date);
+    // Get commission statistics from dashboard controller
+    const dashboardController = new DashboardController();
+    const commissionStats = await dashboardController.getCommissionStats();
 
-    // Get top earning influencers
-    const topEarningInfluencers = await Commission.getTopEarningInfluencers(10, start_date, end_date);
+    // Get top earning influencers from commission stats
+    const topEarningInfluencers = commissionStats.topInfluencers || [];
 
     const reportData = {
       points: {
@@ -665,7 +773,9 @@ router.get('/comprehensive', [
     const storeStats = await Store.getStoreStats(start_date, end_date);
     const pointsStats = await PointsTransaction.getPointsStats(start_date, end_date);
     const cashbackStats = await CashbackTransaction.getCashbackStats(start_date, end_date);
-    const commissionStats = await Commission.getCommissionStats(start_date, end_date);
+    // Get commission statistics from dashboard controller
+    const dashboardController = new DashboardController();
+    const commissionStats = await dashboardController.getCommissionStats();
     const onlinePurchaseStats = await OnlinePurchase.getOnlinePurchaseStats(start_date, end_date);
     const purchaseEntryStats = await PurchaseEntry.getEntryStats(start_date, end_date);
     const campaignStats = await Campaign.getCampaignStats(start_date, end_date);

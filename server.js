@@ -13,9 +13,9 @@ const adminRoutes = require('./routes/admin');
 const storeRoutes = require('./routes/stores');
 const campaignRoutes = require('./routes/campaigns');
 const salesRoutes = require('./routes/sales');
-const commissionRoutes = require('./routes/commissions');
 const commissionSettingsRoutes = require('./routes/commissionSettings');
 const commissionRulesRoutes = require('./routes/commissionRules');
+const commissionRoutes = require('./routes/commissions');
 const billingRoutes = require('./routes/billing');
 const notificationRoutes = require('./routes/notifications');
 const reportsRoutes = require('./routes/reports');
@@ -33,6 +33,7 @@ const bulkRoutes = require('./routes/bulk');
 const dashboardRoutes = require('./routes/dashboard');
 const bankDetailsRoutes = require('./routes/bankDetails');
 const influencerLevelsRoutes = require('./routes/influencerLevels');
+const loyaltyLevelsRoutes = require('./routes/loyaltyLevels');
 const payoutRequestRoutes = require('./routes/payoutRequests');
 const activityLogsRoutes = require('./routes/activityLogs');
 const systemStatsRoutes = require('./routes/systemStats');
@@ -129,14 +130,25 @@ app.get('/api/cors-test', (req, res) => {
   });
 });
 
-// Rate limiting
+// Rate limiting - More lenient for development
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || (process.env.NODE_ENV === 'development' ? 1000 : 100), // Higher limit for development
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || (process.env.NODE_ENV === 'development' ? 10000 : 1000), // Much higher limit for development
   message: {
     error: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for dashboard endpoints in development
+    if (process.env.NODE_ENV === 'development' && req.path.includes('/dashboard/')) {
+      return true;
+    }
+    return false;
   }
 });
+
+// Apply rate limiting to all API routes
 app.use('/api/', limiter);
 
 // Logging middleware
@@ -158,80 +170,19 @@ app.use('/uploads', express.static('uploads'));
 // API routes
 const apiPrefix = process.env.API_PREFIX || '/api';
 
-// Add fallback routes for frontend compatibility (without /v1)
+// API routes with version prefix
 console.log('🔄 Setting up API routes...');
-app.use('/api/auth', authRoutes);
-console.log('✅ Auth routes loaded');
-app.use('/api/users', userRoutes);
-console.log('✅ User routes loaded');
-app.use('/api/admin', adminRoutes);
-console.log('✅ Admin routes loaded');
-app.use('/api/stores', storeRoutes);
-console.log('✅ Store routes loaded');
-app.use('/api/campaigns', campaignRoutes);
-console.log('✅ Campaign routes loaded');
-app.use('/api/sales', salesRoutes);
-console.log('✅ Sales routes loaded');
-app.use('/api/commissions', commissionRoutes);
-console.log('✅ Commission routes loaded');
-app.use('/api/commission-settings', commissionSettingsRoutes);
-console.log('✅ Commission settings routes loaded');
-app.use('/api/commission-rules', commissionRulesRoutes);
-console.log('✅ Commission rules routes loaded');
-app.use('/api/billing', billingRoutes);
-console.log('✅ Billing routes loaded');
-app.use('/api/notifications', notificationRoutes);
-console.log('✅ Notification routes loaded');
-app.use('/api/reports', reportsRoutes);
-console.log('✅ Report routes loaded');
-app.use('/api/points', pointsRoutes);
-console.log('✅ Points routes loaded');
-app.use('/api/cashback', cashbackRoutes);
-console.log('✅ Cashback routes loaded');
-app.use('/api/purchases', purchaseRoutes);
-console.log('✅ Purchase routes loaded');
-app.use('/api/online-purchases', onlinePurchaseRoutes);
-console.log('✅ Online purchase routes loaded');
-app.use('/api/wallets', walletRoutes);
-console.log('✅ Wallet routes loaded');
-app.use('/api/audit', auditRoutes);
-console.log('✅ Audit routes loaded');
-app.use('/api/analytics', analyticsRoutes);
-console.log('✅ Analytics routes loaded');
-app.use('/api/export', exportRoutes);
-console.log('✅ Export routes loaded');
-app.use('/api/health', healthRoutes);
-console.log('✅ Health routes loaded');
-app.use('/api/search', searchRoutes);
-console.log('✅ Search routes loaded');
-app.use('/api/bulk', bulkRoutes);
-console.log('✅ Bulk routes loaded');
-app.use('/api/dashboard', dashboardRoutes);
-console.log('✅ Dashboard routes loaded');
-app.use('/api/bank-details', bankDetailsRoutes);
-console.log('✅ Bank details routes loaded');
-app.use('/api/influencer-levels', influencerLevelsRoutes);
-console.log('✅ Influencer levels routes loaded');
-app.use('/api/payout-requests', payoutRequestRoutes);
-console.log('✅ Payout request routes loaded');
-app.use('/api/activity-logs', activityLogsRoutes);
-console.log('✅ Activity log routes loaded');
-app.use('/api/system-stats', systemStatsRoutes);
-console.log('✅ System stats routes loaded');
-app.use('/api/general-settings', generalSettingsRoutes);
-console.log('✅ General settings routes loaded');
 
-// Main API routes with version prefix
-console.log('🔄 Setting up versioned API routes...');
+// Main API routes
 app.use(`${apiPrefix}/auth`, authRoutes);
 app.use(`${apiPrefix}/users`, userRoutes);
 app.use(`${apiPrefix}/admin`, adminRoutes);
 app.use(`${apiPrefix}/stores`, storeRoutes);
 app.use(`${apiPrefix}/campaigns`, campaignRoutes);
 app.use(`${apiPrefix}/sales`, salesRoutes);
-app.use(`${apiPrefix}/commissions`, commissionRoutes);
 app.use(`${apiPrefix}/commission-settings`, commissionSettingsRoutes);
 app.use(`${apiPrefix}/commission-rules`, commissionRulesRoutes);
+app.use(`${apiPrefix}/commissions`, commissionRoutes);
 app.use(`${apiPrefix}/billing`, billingRoutes);
 app.use(`${apiPrefix}/notifications`, notificationRoutes);
 app.use(`${apiPrefix}/reports`, reportsRoutes);
@@ -249,6 +200,7 @@ app.use(`${apiPrefix}/bulk`, bulkRoutes);
 app.use(`${apiPrefix}/dashboard`, dashboardRoutes);
 app.use(`${apiPrefix}/bank-details`, bankDetailsRoutes);
 app.use(`${apiPrefix}/influencer-levels`, influencerLevelsRoutes);
+app.use(`${apiPrefix}/loyalty-levels`, loyaltyLevelsRoutes);
 app.use(`${apiPrefix}/payout-requests`, payoutRequestRoutes);
 app.use(`${apiPrefix}/activity-logs`, activityLogsRoutes);
 app.use(`${apiPrefix}/system-stats`, systemStatsRoutes);

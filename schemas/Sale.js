@@ -3,25 +3,157 @@ const mongoose = require('mongoose');
 const saleSchema = new mongoose.Schema({
   sale_number: {
     type: String,
-    required: true,
+    required: false,
     unique: true,
+    sparse: true,
     trim: true,
     uppercase: true
+  },
+  transaction_id: {
+    type: String,
+    required: false,
+    unique: true,
+    sparse: true,
+    trim: true
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  unit_price: {
+    type: Number,
+    required: false,
+    min: 0
+  },
+  subtotal: {
+    type: Number,
+    required: false,
+    min: 0
+  },
+  discount_amount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  tax_amount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  total_amount: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  currency: {
+    type: String,
+    default: 'BRL',
+    enum: ['USD', 'AOA', 'EUR', 'BRL']
+  },
+  order_status: {
+    type: String,
+    enum: ['pending', 'processing', 'completed', 'cancelled', 'refunded', 'in_transit', 'delivered'],
+    default: 'completed'
+  },
+  points_earned: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  cashback_earned: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  loyalty_tier_at_purchase: {
+    type: String,
+    enum: ['lead', 'silver', 'gold', 'platinum'],
+    default: 'lead'
+  },
+  campaign_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Campaign'
+  },
+  referral_code: {
+    type: String,
+    trim: true
+  },
+  user_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  store_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Store',
+    required: false
+  },
+  product_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: false
+  },
+  // Invoice-specific fields
+  purchaser_name: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  purchaser_phone: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  purchaser_email: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  liters_purchased: {
+    type: Number,
+    required: false,
+    min: 0
+  },
+  store_number: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  store_number_hash: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  qr_code_data: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  payment_method: {
+    type: String,
+    enum: ['cash', 'card', 'bank_transfer', 'wallet', 'pix', 'mobile_money', 'credit_card', 'debit_card', 'points'],
+    default: 'cash'
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'completed', 'cancelled', 'refunded'],
+    default: 'completed'
   },
   customer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
   store: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Store',
-    required: true
+    required: false
   },
   seller: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
   items: [{
     product: {
@@ -55,36 +187,6 @@ const saleSchema = new mongoose.Schema({
       min: 0
     }
   }],
-  subtotal: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  discount: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  tax: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  delivery_fee: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  total_amount: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  payment_method: {
-    type: String,
-    enum: ['cash', 'mobile_money', 'bank_transfer', 'credit_card', 'debit_card', 'points'],
-    required: true
-  },
   payment_status: {
     type: String,
     enum: ['pending', 'paid', 'failed', 'refunded', 'partially_refunded'],
@@ -151,6 +253,15 @@ const saleSchema = new mongoose.Schema({
     calculated: {
       type: Boolean,
       default: false
+    },
+    tier: {
+      type: String,
+      enum: ['lead', 'silver', 'gold', 'platinum'],
+      default: 'lead'
+    },
+    settings_used: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CommissionSettings'
     }
   },
   referral: {
@@ -181,7 +292,24 @@ const saleSchema = new mongoose.Schema({
     },
     device: String,
     ip_address: String,
-    user_agent: String
+    user_agent: String,
+    commission_settings_snapshot: {
+      base_rate: {
+        type: Number,
+        min: 0,
+        max: 100
+      },
+      tier_multipliers: {
+        lead: { type: Number, min: 0 },
+        silver: { type: Number, min: 0 },
+        gold: { type: Number, min: 0 },
+        platinum: { type: Number, min: 0 }
+      },
+      commission_cap: {
+        type: Number,
+        min: 0
+      }
+    }
   }
 }, {
   timestamps: true,
@@ -191,12 +319,12 @@ const saleSchema = new mongoose.Schema({
 
 // Indexes
 // Note: sale_number index is automatically created by unique: true
-saleSchema.index({ customer: 1 });
-saleSchema.index({ store: 1 });
-saleSchema.index({ seller: 1 });
-saleSchema.index({ payment_status: 1 });
-saleSchema.index({ delivery_status: 1 });
-saleSchema.index({ createdAt: -1 });
+saleSchema.index({ user_id: 1, created_at: -1 });
+saleSchema.index({ store_id: 1, created_at: -1 });
+saleSchema.index({ product_id: 1, created_at: -1 });
+saleSchema.index({ status: 1, created_at: -1 });
+saleSchema.index({ payment_status: 1, created_at: -1 });
+saleSchema.index({ created_at: -1 });
 saleSchema.index({ 'delivery_address.coordinates': '2dsphere' });
 
 // Virtual for profit (if cost data is available)
@@ -237,17 +365,27 @@ saleSchema.methods.generateSaleNumber = function() {
 
 // Instance method to calculate totals
 saleSchema.methods.calculateTotals = function() {
-  // Calculate subtotal from items
-  this.subtotal = this.items.reduce((sum, item) => sum + item.total_price, 0);
-  
-  // Calculate total amount
-  this.total_amount = this.subtotal - this.discount + this.tax + this.delivery_fee;
-  
-  // Calculate total liters
-  this.total_liters = this.items.reduce((sum, item) => sum + (item.liters || 0), 0);
-  
-  // Calculate total points
-  this.points_earned = this.items.reduce((sum, item) => sum + (item.points_earned || 0), 0);
+  // Calculate subtotal from items (if items exist)
+  if (this.items && this.items.length > 0) {
+    this.subtotal = this.items.reduce((sum, item) => sum + item.total_price, 0);
+    
+    // Calculate total amount
+    this.total_amount = this.subtotal - (this.discount || 0) + (this.tax || 0) + (this.delivery_fee || 0);
+    
+    // Calculate total liters
+    this.total_liters = this.items.reduce((sum, item) => sum + (item.liters || 0), 0);
+    
+    // Calculate total points
+    this.points_earned = this.items.reduce((sum, item) => sum + (item.points_earned || 0), 0);
+  } else {
+    // If no items, use existing values or defaults
+    if (!this.subtotal && this.total_amount) {
+      this.subtotal = this.total_amount;
+    }
+    if (!this.total_liters && this.liters_purchased) {
+      this.total_liters = this.liters_purchased;
+    }
+  }
 };
 
 // Static method to find by sale number

@@ -5,10 +5,10 @@ const { verifyToken, requireManager } = require('../middleware/auth');
 
 const router = express.Router();
 
-// @route   GET /api/audit
+// @route   GET /api/audit/logs
 // @desc    Get audit logs with pagination and filters
 // @access  Private (Manager+)
-router.get('/', [
+router.get('/logs', [
   verifyToken,
   requireManager,
   query('page').optional().isInt({ min: 1 }).toInt(),
@@ -459,6 +459,54 @@ router.post('/log', [
     res.status(500).json({
       success: false,
       error: 'Failed to create audit log'
+    });
+  }
+});
+
+// @route   GET /api/audit/logs/:id
+// @desc    Get audit log by ID
+// @access  Private (Manager+)
+router.get('/logs/:id', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const log = await AuditLog.findById(id);
+    
+    if (!log) {
+      return res.status(404).json({
+        success: false,
+        error: 'Audit log not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: { log }
+    });
+  } catch (error) {
+    console.error('Get audit log by ID error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get audit log'
+    });
+  }
+});
+
+// @route   GET /api/audit/stats/overview
+// @desc    Get audit statistics overview
+// @access  Private (Manager+)
+router.get('/stats/overview', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const auditStats = await AuditLog.getAuditStats();
+    
+    res.json({
+      success: true,
+      data: auditStats
+    });
+  } catch (error) {
+    console.error('Get audit stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get audit statistics'
     });
   }
 });

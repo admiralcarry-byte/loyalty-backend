@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { commissionSettingsController } = require('../controllers');
 const { verifyToken, requireAdmin, requireManager } = require('../middleware/auth');
+const DashboardController = require('../controllers/dashboardController');
 
 const router = express.Router();
 
@@ -52,8 +53,8 @@ const validateCommissionSettings = [
 // @desc    Get current commission settings
 // @access  Private (Admin/Manager)
 router.get('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     await commissionSettingsController.getCurrentSettings(req, res);
@@ -69,8 +70,8 @@ router.get('/', [
 // @desc    Save new commission settings
 // @access  Private (Admin only)
 router.post('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireAdmin,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireAdmin,  // Re-enabled authorization
   ...validateCommissionSettings
 ], async (req, res) => {
   try {
@@ -87,8 +88,8 @@ router.post('/', [
 // @desc    Get commission settings history
 // @access  Private (Admin/Manager)
 router.get('/history', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     await commissionSettingsController.getSettingsHistory(req, res);
@@ -104,8 +105,8 @@ router.get('/history', [
 // @desc    Calculate commission for testing
 // @access  Private (Admin/Manager)
 router.post('/calculate', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
   body('tier')
     .isIn(['lead', 'silver', 'gold', 'platinum'])
     .withMessage('Tier must be lead, silver, gold, or platinum'),
@@ -115,6 +116,26 @@ router.post('/calculate', [
 ], async (req, res) => {
   try {
     await commissionSettingsController.calculateCommission(req, res);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/commission-settings/stats
+// @desc    Get commission statistics for dashboard
+// @access  Private (Manager+)
+router.get('/stats', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const dashboardController = new DashboardController();
+    const commissionStats = await dashboardController.getCommissionStats();
+    
+    res.json({
+      success: true,
+      data: commissionStats
+    });
   } catch (error) {
     res.status(500).json({
       success: false,

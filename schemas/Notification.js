@@ -430,4 +430,27 @@ notificationSchema.statics.getNotificationStats = async function(startDate, endD
   };
 };
 
+// Get old notifications (older than 30 days)
+notificationSchema.statics.getOldNotifications = async function(limit = 50) {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  return await this.find({
+    created_at: { $lt: thirtyDaysAgo }
+  })
+  .sort({ created_at: -1 })
+  .limit(limit)
+  .populate('recipients.user', 'username email first_name last_name');
+};
+
+// Get notifications by user
+notificationSchema.statics.getNotificationsByUser = async function(userId, limit = 50) {
+  return await this.find({
+    'recipients.user': userId
+  })
+  .sort({ created_at: -1 })
+  .limit(limit)
+  .populate('recipients.user', 'username email first_name last_name');
+};
+
 module.exports = mongoose.model('Notification', notificationSchema); 

@@ -374,4 +374,54 @@ auditLogSchema.statics.getAuditLogStats = async function(startDate, endDate) {
   };
 };
 
+// Get audit statistics overview
+auditLogSchema.statics.getAuditStats = async function(startDate, endDate) {
+  const matchConditions = {};
+  
+  if (startDate && endDate) {
+    matchConditions.created_at = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate)
+    };
+  }
+
+  const pipeline = [
+    { $match: matchConditions },
+    {
+      $group: {
+        _id: null,
+        total_logs: { $sum: 1 },
+        unique_users: { $addToSet: '$user_id' },
+        unique_actions: { $addToSet: '$action' },
+        unique_modules: { $addToSet: '$module' },
+        high_risk_logs: { $sum: { $cond: [{ $eq: ['$risk_level', 'high'] }, 1, 0] } },
+        medium_risk_logs: { $sum: { $cond: [{ $eq: ['$risk_level', 'medium'] }, 1, 0] } },
+        low_risk_logs: { $sum: { $cond: [{ $eq: ['$risk_level', 'low'] }, 1, 0] } }
+      }
+    },
+    {
+      $project: {
+        total_logs: 1,
+        unique_users_count: { $size: '$unique_users' },
+        unique_actions_count: { $size: '$unique_actions' },
+        unique_modules_count: { $size: '$unique_modules' },
+        high_risk_logs: 1,
+        medium_risk_logs: 1,
+        low_risk_logs: 1
+      }
+    }
+  ];
+
+  const result = await this.aggregate(pipeline);
+  return result[0] || {
+    total_logs: 0,
+    unique_users_count: 0,
+    unique_actions_count: 0,
+    unique_modules_count: 0,
+    high_risk_logs: 0,
+    medium_risk_logs: 0,
+    low_risk_logs: 0
+  };
+};
+
 module.exports = mongoose.model('AuditLog', auditLogSchema); 

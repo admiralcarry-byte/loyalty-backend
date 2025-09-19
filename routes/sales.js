@@ -9,8 +9,8 @@ const router = express.Router();
 // @desc    Get all sales with pagination and filters
 // @access  Private (Manager+)
 router.get('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const result = await saleController.getAllSales(req);
@@ -52,8 +52,8 @@ router.get('/:id', [verifyToken, requireManager], async (req, res) => {
 // @desc    Create new sale
 // @access  Private (Manager+) - Temporarily disabled for testing
 router.post('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
   // Accept both backend format (user_id, store_id) and frontend format (customer, location)
   body('user_id').optional().isInt().withMessage('User ID must be a valid integer'),
   body('store_id').optional().isInt().withMessage('Store ID must be a valid integer'),
@@ -155,11 +155,33 @@ router.patch('/:id/status', [
 // @desc    Get sales statistics overview
 // @access  Private (Manager+) - Temporarily disabled for testing
 router.get('/stats/overview', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const saleStats = await saleController.getSaleStats();
+    
+    res.json({
+      success: true,
+      data: saleStats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/sales/stats
+// @desc    Get sales statistics for dashboard cards
+// @access  Private (Manager+) - Temporarily disabled for testing
+router.get('/stats', [
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
+], async (req, res) => {
+  try {
+    const saleStats = await saleController.getSalesStats();
     
     res.json({
       success: true,

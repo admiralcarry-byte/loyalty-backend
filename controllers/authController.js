@@ -90,8 +90,9 @@ class AuthController {
   // Refresh token
   async refreshToken(refreshToken) {
     try {
-      const refreshSecret = process.env.JWT_REFRESH_SECRET || 'aguatwezah_refresh_secret_key_2024';
-      const decoded = jwt.verify(refreshToken, refreshSecret);
+      // For now, we're using the same token as refresh token, so verify with main secret
+      const jwtSecret = process.env.JWT_SECRET || 'aguatwezah_super_secret_jwt_key_2024';
+      const decoded = jwt.verify(refreshToken, jwtSecret);
       const user = await userModel.findById(decoded.userId);
       
       if (!user || user.status !== 'active') {
@@ -99,7 +100,20 @@ class AuthController {
       }
 
       const newToken = this.generateToken(user);
-      return { token: newToken };
+      return { 
+        user: {
+          id: user.id,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          role: user.role,
+          loyalty_tier: user.loyalty_tier,
+          status: user.status,
+          points_balance: user.points_balance,
+          total_liters: user.total_liters
+        },
+        accessToken: newToken 
+      };
     } catch (error) {
       throw new Error('Invalid refresh token');
     }
@@ -232,7 +246,7 @@ class AuthController {
     };
 
     const jwtSecret = process.env.JWT_SECRET || 'aguatwezah_super_secret_jwt_key_2024';
-    const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
+    const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '7d';
 
     return jwt.sign(payload, jwtSecret, {
       expiresIn: jwtExpiresIn

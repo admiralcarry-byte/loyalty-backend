@@ -1,13 +1,12 @@
-const { User, Store, Sale, Commission, Campaign } = require('../schemas');
+const { User, Store, Sale, Campaign } = require('../models');
 const PercentageCalculator = require('../utils/percentageCalculator');
 
 class DashboardController {
   constructor() {
-    this.userModel = User;
-    this.storeModel = Store;
-    this.saleModel = Sale;
-    this.commissionModel = Commission;
-    this.campaignModel = Campaign;
+    this.userModel = new User();
+    this.storeModel = new Store();
+    this.saleModel = new Sale();
+    this.campaignModel = new Campaign();
   }
   // Get main dashboard data
   async getDashboardData() {
@@ -44,36 +43,36 @@ class DashboardController {
       const dateRanges = PercentageCalculator.getDateRanges();
       
       // Get total customers (excluding staff)
-      const totalUsers = await this.userModel.countDocuments({ 
+      const totalUsers = await this.userModel.model.countDocuments({ 
         role: { $in: customerRoles } 
       });
       
       // Get active customers (excluding staff)
-      const activeUsers = await this.userModel.countDocuments({ 
+      const activeUsers = await this.userModel.model.countDocuments({ 
         status: 'active',
         role: { $in: customerRoles }
       });
       
       // Get customers by loyalty tier (excluding staff)
-      const leadUsers = await this.userModel.countDocuments({ 
+      const leadUsers = await this.userModel.model.countDocuments({ 
         loyalty_tier: 'lead',
         role: { $in: customerRoles }
       });
-      const silverUsers = await this.userModel.countDocuments({ 
+      const silverUsers = await this.userModel.model.countDocuments({ 
         loyalty_tier: 'silver',
         role: { $in: customerRoles }
       });
-      const goldUsers = await this.userModel.countDocuments({ 
+      const goldUsers = await this.userModel.model.countDocuments({ 
         loyalty_tier: 'gold',
         role: { $in: customerRoles }
       });
-      const platinumUsers = await this.userModel.countDocuments({ 
+      const platinumUsers = await this.userModel.model.countDocuments({ 
         loyalty_tier: 'platinum',
         role: { $in: customerRoles }
       });
       
       // Get recent customers (current month, excluding staff)
-      const newUsersThisMonth = await this.userModel.countDocuments({ 
+      const newUsersThisMonth = await this.userModel.model.countDocuments({ 
         created_at: { 
           $gte: dateRanges.currentMonth.start,
           $lte: dateRanges.currentMonth.end
@@ -82,7 +81,7 @@ class DashboardController {
       });
       
       // Get previous month users for comparison
-      const newUsersPreviousMonth = await this.userModel.countDocuments({ 
+      const newUsersPreviousMonth = await this.userModel.model.countDocuments({ 
         created_at: { 
           $gte: dateRanges.previousMonth.start,
           $lte: dateRanges.previousMonth.end
@@ -91,7 +90,7 @@ class DashboardController {
       });
       
       // Get today's users
-      const newUsersToday = await this.userModel.countDocuments({ 
+      const newUsersToday = await this.userModel.model.countDocuments({ 
         created_at: { 
           $gte: dateRanges.today.start,
           $lte: dateRanges.today.end
@@ -100,7 +99,7 @@ class DashboardController {
       });
       
       // Get this week's users
-      const newUsersThisWeek = await this.userModel.countDocuments({ 
+      const newUsersThisWeek = await this.userModel.model.countDocuments({ 
         created_at: { 
           $gte: dateRanges.currentWeek.start,
           $lte: dateRanges.currentWeek.end
@@ -159,7 +158,7 @@ class DashboardController {
       const monthAgo = new Date(today);
       monthAgo.setDate(monthAgo.getDate() - 30);
 
-      const stats = await this.storeModel.aggregate([
+      const stats = await this.storeModel.model.aggregate([
         {
           $group: {
             _id: null,
@@ -195,7 +194,7 @@ class DashboardController {
       const result = stats[0] || {};
       
       // Get total sales from all stores
-      const totalSales = await this.saleModel.aggregate([
+      const totalSales = await this.saleModel.model.aggregate([
         {
           $group: {
             _id: null,
@@ -230,7 +229,7 @@ class DashboardController {
       const dateRanges = PercentageCalculator.getDateRanges();
       
       // Get current month stats
-      const currentMonthStats = await this.saleModel.aggregate([
+      const currentMonthStats = await this.saleModel.model.aggregate([
         {
           $match: {
             created_at: {
@@ -250,7 +249,7 @@ class DashboardController {
       ]);
 
       // Get previous month stats
-      const previousMonthStats = await this.saleModel.aggregate([
+      const previousMonthStats = await this.saleModel.model.aggregate([
         {
           $match: {
             created_at: {
@@ -270,16 +269,16 @@ class DashboardController {
       ]);
 
       // Get overall stats
-      const overallStats = await this.saleModel.aggregate([
+      const overallStats = await this.saleModel.model.aggregate([
         {
           $group: {
             _id: null,
             total_sales: { $sum: 1 },
             total_revenue: { $sum: '$total_amount' },
-            total_liters: { $sum: { $sum: '$items.liters' } },
+            total_liters: { $sum: '$total_liters' }, // Use total_liters field from schema
             avg_sale_amount: { $avg: '$total_amount' },
-            unique_customers: { $addToSet: '$user' },
-            stores_with_sales: { $addToSet: '$store' }
+            unique_customers: { $addToSet: '$user_id' },
+            stores_with_sales: { $addToSet: '$store_id' }
           }
         },
         {
@@ -337,49 +336,211 @@ class DashboardController {
     }
   }
 
-  // Get commission statistics
+  // Get commission statistics from sales table only
   async getCommissionStats() {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Get commission settings for calculation
+      const CommissionSettings = require('../models/CommissionSettings');
+      const commissionSettingsModel = new CommissionSettings();
+      const settings = await commissionSettingsModel.model.findOne({});
       
-      const weekAgo = new Date(today);
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      // Default commission settings if none found
+      const defaultSettings = {
+        base_commission_rate: 5.0,
+        tier_multipliers: {
+          lead: 1.0,
+          silver: 1.2,
+          gold: 1.5,
+          platinum: 2.0
+        },
+        commission_cap: 1000.0
+      };
       
-      const monthAgo = new Date(today);
-      monthAgo.setDate(monthAgo.getDate() - 30);
-
-      const stats = await this.commissionModel.aggregate([
+      const commissionSettings = settings || defaultSettings;
+      
+      // Use the actual values in the aggregation pipeline
+      const baseRate = commissionSettings.base_commission_rate;
+      const leadMultiplier = commissionSettings.tier_multipliers.lead;
+      const silverMultiplier = commissionSettings.tier_multipliers.silver;
+      const goldMultiplier = commissionSettings.tier_multipliers.gold;
+      const platinumMultiplier = commissionSettings.tier_multipliers.platinum;
+      const commissionCap = commissionSettings.commission_cap;
+      
+      // Calculate commission statistics from all sales
+      const salesStats = await this.saleModel.model.aggregate([
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'user_id',
+            foreignField: '_id',
+            as: 'user'
+          }
+        },
+        {
+          $unwind: {
+            path: '$user',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $addFields: {
+            calculatedCommission: {
+              $cond: [
+                { $and: [
+                  { $ne: ['$commission.amount', null] },
+                  { $ne: ['$commission.amount', undefined] },
+                  { $gt: ['$commission.amount', 0] }
+                ]},
+                '$commission.amount',
+                {
+                  $let: {
+                    vars: {
+                      userTier: { $ifNull: ['$user.loyalty_tier', 'lead'] },
+                      tierMultiplier: {
+                        $switch: {
+                          branches: [
+                            { case: { $eq: ['$user.loyalty_tier', 'silver'] }, then: silverMultiplier },
+                            { case: { $eq: ['$user.loyalty_tier', 'gold'] }, then: goldMultiplier },
+                            { case: { $eq: ['$user.loyalty_tier', 'platinum'] }, then: platinumMultiplier }
+                          ],
+                          default: leadMultiplier
+                        }
+                      },
+                      baseCommission: { $multiply: ['$total_amount', { $divide: [baseRate, 100] }] }
+                    },
+                    in: {
+                      $min: [
+                        { $multiply: ['$$baseCommission', '$$tierMultiplier'] },
+                        commissionCap
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
         {
           $group: {
             _id: null,
             total_commissions: { $sum: 1 },
-            total_commission_amount: { $sum: '$amount' },
-            avg_commission_amount: { $avg: '$amount' },
-            pending_commissions: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-            approved_commissions: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, 1, 0] } },
-            rejected_commissions: { $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] } },
-            paid_commissions: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, 1, 0] } },
-            total_paid_commissions: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, '$amount', 0] } },
-            commissions_today: { $sum: { $cond: [{ $gte: ['$createdAt', today] }, 1, 0] } },
-            commissions_week: { $sum: { $cond: [{ $gte: ['$createdAt', weekAgo] }, 1, 0] } },
-            commissions_month: { $sum: { $cond: [{ $gte: ['$createdAt', monthAgo] }, 1, 0] } }
+            total_commission_amount: { $sum: '$calculatedCommission' },
+            paid_commissions: { 
+              $sum: { 
+                $cond: [
+                  { $eq: ['$payment_status', 'paid'] }, 
+                  1, 
+                  0
+                ] 
+              } 
+            },
+            paid_commission_amount: { 
+              $sum: { 
+                $cond: [
+                  { $eq: ['$payment_status', 'paid'] }, 
+                  '$calculatedCommission', 
+                  0
+                ] 
+              } 
+            },
+            pending_commissions: { 
+              $sum: { 
+                $cond: [
+                  { $eq: ['$payment_status', 'pending'] }, 
+                  1, 
+                  0
+                ] 
+              } 
+            },
+            pending_commission_amount: { 
+              $sum: { 
+                $cond: [
+                  { $eq: ['$payment_status', 'pending'] }, 
+                  '$calculatedCommission', 
+                  0
+                ] 
+              } 
+            }
           }
         }
       ]);
 
-      const result = stats[0] || {};
+      const stats = salesStats[0] || {};
       
-      // Get top influencers (simplified approach)
+      // Calculate average commission amount
+      const avgCommissionAmount = stats.total_commissions > 0 
+        ? stats.total_commission_amount / stats.total_commissions 
+        : 0;
+
+      // Get top influencers from sales data - only users with 'influencer' role
       let topInfluencers = [];
       try {
-        // Get unique users who have commissions
-        const userCommissions = await this.commissionModel.aggregate([
+        const userSales = await this.saleModel.model.aggregate([
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user_id',
+              foreignField: '_id',
+              as: 'user'
+            }
+          },
+          {
+            $unwind: {
+              path: '$user',
+              preserveNullAndEmptyArrays: true
+            }
+          },
+          {
+            $addFields: {
+              calculatedCommission: {
+                $cond: [
+                  { $and: [
+                    { $ne: ['$commission.amount', null] },
+                    { $ne: ['$commission.amount', undefined] },
+                    { $gt: ['$commission.amount', 0] }
+                  ]},
+                  '$commission.amount',
+                  {
+                    $let: {
+                      vars: {
+                        userTier: { $ifNull: ['$user.loyalty_tier', 'lead'] },
+                        tierMultiplier: {
+                          $switch: {
+                            branches: [
+                              { case: { $eq: ['$user.loyalty_tier', 'silver'] }, then: silverMultiplier },
+                              { case: { $eq: ['$user.loyalty_tier', 'gold'] }, then: goldMultiplier },
+                              { case: { $eq: ['$user.loyalty_tier', 'platinum'] }, then: platinumMultiplier }
+                            ],
+                            default: leadMultiplier
+                          }
+                        },
+                        baseCommission: { $multiply: ['$total_amount', { $divide: [baseRate, 100] }] }
+                      },
+                      in: {
+                        $min: [
+                          { $multiply: ['$$baseCommission', '$$tierMultiplier'] },
+                          commissionCap
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            $match: {
+              'user.role': 'influencer'
+            }
+          },
           {
             $group: {
-              _id: '$user',
-              total_commission: { $sum: '$amount' },
-              commission_count: { $sum: 1 }
+              _id: '$user_id',
+              total_sales: { $sum: '$total_amount' },
+              total_commission: { $sum: '$calculatedCommission' },
+              sales_count: { $sum: 1 },
+              user_name: { $first: { $concat: ['$user.first_name', ' ', '$user.last_name'] } },
+              user_tier: { $first: '$user.loyalty_tier' }
             }
           },
           {
@@ -389,39 +550,51 @@ class DashboardController {
             $limit: 5
           }
         ]);
-
-        // Get user details for these users
-        if (userCommissions.length > 0) {
-          const userIds = userCommissions.map(uc => uc._id);
-          const users = await this.userModel.find({ _id: { $in: userIds } });
-          
-          topInfluencers = userCommissions.map(uc => {
-            const user = users.find(u => u._id.toString() === uc._id.toString());
-            return {
-              name: user ? `${user.first_name} ${user.last_name}` : 'Unknown User',
-              network: 0, // Placeholder
-              commission: uc.total_commission,
-              tier: user ? user.loyalty_tier : 'unknown'
-            };
-          });
-        }
+        
+        topInfluencers = userSales.map(us => ({
+          name: us.user_name || 'Unknown User',
+          network: 0, // Placeholder
+          commission: us.total_commission || 0,
+          tier: us.user_tier || 'unknown'
+        }));
+        
       } catch (influencerError) {
-        console.error('Error getting top influencers:', influencerError);
+        console.error('Error getting top influencers from sales:', influencerError);
         topInfluencers = [];
       }
 
       return {
-        totalCommissions: result.total_commissions || 0,
-        paidCommissions: result.total_paid_commissions || 0,
-        pendingCommissions: result.pending_commissions || 0,
+        total_commissions: stats.total_commissions || 0,
+        total_commission_amount: stats.total_commission_amount || 0,
+        avg_commission_amount: avgCommissionAmount,
+        pending_commissions: stats.pending_commissions || 0,
+        approved_commissions: stats.paid_commissions || 0,
+        rejected_commissions: 0, // No rejected commissions in current system
+        paid_commissions: stats.paid_commissions || 0,
+        total_paid_commissions: stats.paid_commission_amount || 0,
+        total_pending_commissions: stats.pending_commission_amount || 0,
+        total_approved_commissions: stats.paid_commission_amount || 0,
+        commissions_today: 0, // Will be calculated separately if needed
+        commissions_week: 0,  // Will be calculated separately if needed
+        commissions_month: 0, // Will be calculated separately if needed
         topInfluencers: topInfluencers
       };
     } catch (error) {
       console.error('Error getting commission stats:', error);
       return {
-        totalCommissions: 0,
-        paidCommissions: 0,
-        pendingCommissions: 0,
+        total_commissions: 0,
+        total_commission_amount: 0,
+        avg_commission_amount: 0,
+        pending_commissions: 0,
+        approved_commissions: 0,
+        rejected_commissions: 0,
+        paid_commissions: 0,
+        total_paid_commissions: 0,
+        total_pending_commissions: 0,
+        total_approved_commissions: 0,
+        commissions_today: 0,
+        commissions_week: 0,
+        commissions_month: 0,
         topInfluencers: []
       };
     }
@@ -455,7 +628,7 @@ class DashboardController {
         }
       ];
 
-      const result = await this.campaignModel.aggregate(pipeline);
+      const result = await this.campaignModel.model.aggregate(pipeline);
       const stats = result[0] || {};
       
       return {
@@ -481,36 +654,69 @@ class DashboardController {
 
       // Get recent users (excluding staff)
       const customerRoles = ['user', 'customer', 'influencer'];
-      const recentUsers = await this.userModel
-        .find({ role: { $in: customerRoles } }, { first_name: 1, last_name: 1, email: 1, created_at: 1 })
+      const recentUsers = await this.userModel.model
+        .find({ role: { $in: customerRoles } }, { first_name: 1, last_name: 1, email: 1, phone: 1, loyalty_tier: 1, created_at: 1 })
         .sort({ created_at: -1 })
         .limit(limit)
         .lean();
 
       // Get recent sales
-      const recentSales = await this.saleModel
-        .find({}, { customer: 1, store: 1, total_amount: 1, created_at: 1 })
+      const recentSales = await this.saleModel.model
+        .find({}, { user_id: 1, store_id: 1, total_amount: 1, created_at: 1 })
         .sort({ created_at: -1 })
         .limit(limit)
         .lean();
 
       // Get recent stores
-      const recentStores = await this.storeModel
+      const recentStores = await this.storeModel.model
         .find({}, { name: 1, city: 1, country: 1, created_at: 1 })
         .sort({ created_at: -1 })
         .limit(limit)
         .lean();
 
+      // Get user sales data for recent users
+      const userIds = recentUsers.map(user => user._id);
+      const userSalesData = await this.saleModel.model.aggregate([
+        {
+          $match: {
+            user_id: { $in: userIds },
+            status: 'completed'
+          }
+        },
+        {
+          $group: {
+            _id: '$user_id',
+            total_liters: { $sum: '$total_liters' },
+            total_cashback: { $sum: '$cashback_earned' },
+            total_sales: { $sum: 1 }
+          }
+        }
+      ]);
+
+      // Create a map of user sales data
+      const userSalesMap = new Map();
+      userSalesData.forEach(sales => {
+        userSalesMap.set(sales._id.toString(), sales);
+      });
+
       // Transform and combine activities
-      const userActivities = recentUsers.map(user => ({
-        type: 'user',
-        id: user._id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        email: user.email,
-        created_at: user.created_at,
-        description: 'New user registered'
-      }));
+      const userActivities = recentUsers.map(user => {
+        const salesData = userSalesMap.get(user._id.toString()) || { total_liters: 0, total_cashback: 0, total_sales: 0 };
+        return {
+          type: 'user',
+          id: user._id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          phone: user.phone,
+          loyalty_tier: user.loyalty_tier || 'Lead',
+          total_liters: salesData.total_liters,
+          total_cashback: salesData.total_cashback,
+          total_sales: salesData.total_sales,
+          timestamp: user.created_at,
+          description: 'New user registered'
+        };
+      });
 
       const saleActivities = recentSales.map(sale => ({
         type: 'sale',
@@ -518,7 +724,7 @@ class DashboardController {
         user_id: sale.user_id,
         store_id: sale.store_id,
         total_amount: sale.total_amount,
-        created_at: sale.created_at,
+        timestamp: sale.created_at,
         description: 'New sale recorded'
       }));
 
@@ -528,13 +734,13 @@ class DashboardController {
         name: store.name,
         city: store.city,
         country: store.country,
-        created_at: store.created_at,
+        timestamp: store.created_at,
         description: 'New store added'
       }));
 
       // Combine and sort by date
       activities.push(...userActivities, ...saleActivities, ...storeActivities);
-      activities.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
       return activities.slice(0, limit);
     } catch (error) {
@@ -575,7 +781,7 @@ class DashboardController {
             _id: groupBy,
             sales_count: { $sum: 1 },
             revenue: { $sum: "$total_amount" },
-            liters: { $sum: { $sum: "$items.liters" } },
+            liters: { $sum: "$quantity" }, // Use quantity as liters
             unique_customers: { $addToSet: "$user_id" }
           }
         },
@@ -593,7 +799,7 @@ class DashboardController {
         }
       ];
 
-      return await this.saleModel.aggregate(pipeline);
+      return await this.saleModel.model.aggregate(pipeline);
     } catch (error) {
       console.error('Error getting sales chart data:', error);
       return [];
@@ -646,7 +852,7 @@ class DashboardController {
         }
       ];
 
-      return await this.userModel.aggregate(pipeline);
+      return await this.userModel.model.aggregate(pipeline);
     } catch (error) {
       console.error('Error getting user registrations chart data:', error);
       return [];

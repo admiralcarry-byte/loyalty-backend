@@ -9,8 +9,8 @@ const router = express.Router();
 // @desc    Get all campaigns with pagination and filters
 // @access  Private (Manager+)
 router.get('/', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const result = await campaignController.getAllCampaigns(req);
@@ -153,12 +153,95 @@ router.patch('/:id/status', [
   }
 });
 
+// @route   POST /api/campaigns/:id/start
+// @desc    Start campaign
+// @access  Private (Manager+)
+router.post('/:id/start', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedCampaign = await campaignController.startCampaign(id);
+    
+    res.json({
+      success: true,
+      message: 'Campaign started successfully',
+      data: { campaign: updatedCampaign }
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/campaigns/:id/pause
+// @desc    Pause campaign
+// @access  Private (Manager+)
+router.post('/:id/pause', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedCampaign = await campaignController.pauseCampaign(id);
+    
+    res.json({
+      success: true,
+      message: 'Campaign paused successfully',
+      data: { campaign: updatedCampaign }
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/campaigns/:id/stop
+// @desc    Stop campaign
+// @access  Private (Manager+)
+router.post('/:id/stop', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedCampaign = await campaignController.stopCampaign(id);
+    
+    res.json({
+      success: true,
+      message: 'Campaign stopped successfully',
+      data: { campaign: updatedCampaign }
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/campaigns/:id/stats
+// @desc    Get campaign statistics
+// @access  Private (Manager+)
+router.get('/:id/stats', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const campaignStats = await campaignController.getCampaignStatsById(id);
+    
+    res.json({
+      success: true,
+      data: campaignStats
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // @route   GET /api/campaigns/stats/overview
 // @desc    Get campaign statistics overview
 // @access  Private (Manager+) - Temporarily disabled for testing
 router.get('/stats/overview', [
-  // verifyToken,  // Temporarily disabled for testing
-  // requireManager,  // Temporarily disabled for testing
+  verifyToken,  // Re-enabled authentication
+  requireManager,  // Re-enabled authorization
 ], async (req, res) => {
   try {
     const campaignStats = await campaignController.getCampaignStats();

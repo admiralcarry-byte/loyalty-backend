@@ -7,13 +7,13 @@ const {
   Sale, 
   PointsTransaction, 
   CashbackTransaction, 
-  Commission,
   Campaign,
   Notification,
   AuditLog,
   Setting
 } = require('../models');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const DashboardController = require('../controllers/dashboardController');
 
 const router = express.Router();
 
@@ -31,7 +31,9 @@ router.get('/dashboard', [verifyToken, requireAdmin], async (req, res) => {
     const storeStats = await Store.getStoreStats(start_date, end_date);
     const pointsStats = await PointsTransaction.getPointsStats(start_date, end_date);
     const cashbackStats = await CashbackTransaction.getCashbackStats(start_date, end_date);
-    const commissionStats = await Commission.getCommissionStats(start_date, end_date);
+    // Get commission statistics from dashboard controller
+    const dashboardController = new DashboardController();
+    const commissionStats = await dashboardController.getCommissionStats();
     const campaignStats = await Campaign.getCampaignStats(start_date, end_date);
 
     // Get recent activity
@@ -441,6 +443,256 @@ router.post('/broadcast-notification', [
     res.status(500).json({
       success: false,
       error: 'Failed to send broadcast notification'
+    });
+  }
+});
+
+// @route   GET /api/admin/users
+// @desc    Get admin users data
+// @access  Private (Admin)
+router.get('/users', [verifyToken, requireAdmin], async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, role, status } = req.query;
+    const result = await User.getAllUsers({ page, limit, search, role, status });
+    
+    res.json({
+      success: true,
+      data: result.users,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    console.error('Admin get users error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get users data'
+    });
+  }
+});
+
+// @route   GET /api/admin/stores
+// @desc    Get admin stores data
+// @access  Private (Admin)
+router.get('/stores', [verifyToken, requireAdmin], async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, city, status } = req.query;
+    const result = await Store.getAllStores({ page, limit, search, city, status });
+    
+    res.json({
+      success: true,
+      data: result.stores,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    console.error('Admin get stores error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get stores data'
+    });
+  }
+});
+
+// @route   GET /api/admin/sales
+// @desc    Get admin sales data
+// @access  Private (Admin)
+router.get('/sales', [verifyToken, requireAdmin], async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, status, dateFrom, dateTo } = req.query;
+    const result = await Sale.getAllSales({ page, limit, search, status, dateFrom, dateTo });
+    
+    res.json({
+      success: true,
+      data: result.sales,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    console.error('Admin get sales error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get sales data'
+    });
+  }
+});
+
+// @route   GET /api/admin/commissions
+// @desc    Get admin commissions data from sales
+// @access  Private (Admin)
+router.get('/commissions', [verifyToken, requireAdmin], async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, status, user_id, store_id } = req.query;
+    
+    // Get commission data from sales instead of Commission table
+    const Sale = require('../models/Sale');
+    const saleModel = new Sale();
+    
+    const matchConditions = {};
+    if (user_id) matchConditions.user_id = user_id;
+    if (store_id) matchConditions.store_id = store_id;
+    if (status) matchConditions.status = status;
+    
+    const skip = (page - 1) * limit;
+    
+    const commissions = await saleModel.model.aggregate([
+      { $match: matchConditions },
+      { $match: { 'commission.amount': { $exists: true, $gt: 0 } } },
+      {
+        $project: {
+          _id: 1,
+          user_id: 1,
+          store_id: 1,
+          total_amount: 1,
+          commission: 1,
+          status: 1,
+          created_at: 1,
+          createdAt: 1
+        }
+      },
+      { $sort: { created_at: -1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: parseInt(limit) }
+    ]);
+    
+    const total = await saleModel.model.countDocuments({
+      ...matchConditions,
+      'commission.amount': { $exists: true, $gt: 0 }
+    });
+    
+    res.json({
+      success: true,
+      data: commissions,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Admin get commissions error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get commissions data'
+    });
+  }
+});
+
+// @route   GET /api/admin/campaigns
+// @desc    Get admin campaigns data
+// @access  Private (Admin)
+router.get('/campaigns', [verifyToken, requireAdmin], async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, type, status } = req.query;
+    const result = await Campaign.getAllCampaigns({ page, limit, search, type, status });
+    
+    res.json({
+      success: true,
+      data: result.campaigns,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    console.error('Admin get campaigns error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get campaigns data'
+    });
+  }
+});
+
+// @route   GET /api/admin/notifications
+// @desc    Get admin notifications data
+// @access  Private (Admin)
+router.get('/notifications', [verifyToken, requireAdmin], async (req, res) => {
+  try {
+    const { page = 1, limit = 10, type, status } = req.query;
+    const result = await Notification.getAllNotifications({ page, limit, type, status });
+    
+    res.json({
+      success: true,
+      data: result.notifications,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    console.error('Admin get notifications error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get notifications data'
+    });
+  }
+});
+
+// @route   GET /api/admin/reports
+// @desc    Get admin reports data
+// @access  Private (Admin)
+router.get('/reports', [verifyToken, requireAdmin], async (req, res) => {
+  try {
+    const { type, start_date, end_date } = req.query;
+    
+    // Get report data based on type
+    let reportData;
+    switch (type) {
+      case 'sales':
+        reportData = await Sale.getSalesReport(start_date, end_date);
+        break;
+      case 'users':
+        reportData = await User.getUserReport(start_date, end_date);
+        break;
+      case 'revenue':
+        reportData = await Sale.getRevenueReport(start_date, end_date);
+        break;
+      default:
+        reportData = await Sale.getOverviewReport();
+    }
+    
+    res.json({
+      success: true,
+      data: reportData
+    });
+  } catch (error) {
+    console.error('Admin get reports error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get reports data'
+    });
+  }
+});
+
+// @route   GET /api/admin/analytics
+// @desc    Get admin analytics data
+// @access  Private (Admin)
+router.get('/analytics', [verifyToken, requireAdmin], async (req, res) => {
+  try {
+    const { type, start_date, end_date } = req.query;
+    
+    // Get analytics data based on type
+    let analyticsData;
+    switch (type) {
+      case 'dashboard':
+        analyticsData = await Sale.getDashboardAnalytics(start_date, end_date);
+        break;
+      case 'users':
+        analyticsData = await User.getUserAnalytics(start_date, end_date);
+        break;
+      case 'sales':
+        analyticsData = await Sale.getSalesAnalytics(start_date, end_date);
+        break;
+      case 'revenue':
+        analyticsData = await Sale.getRevenueAnalytics(start_date, end_date);
+        break;
+      case 'performance':
+        analyticsData = await Sale.getPerformanceAnalytics(start_date, end_date);
+        break;
+      default:
+        analyticsData = await Sale.getDashboardAnalytics(start_date, end_date);
+    }
+    
+    res.json({
+      success: true,
+      data: analyticsData
+    });
+  } catch (error) {
+    console.error('Admin get analytics error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get analytics data'
     });
   }
 });

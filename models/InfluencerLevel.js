@@ -45,7 +45,7 @@ class InfluencerLevel extends BaseModel {
   // Get all influencer levels
   async getAllLevels() {
     try {
-      return await this.find({ is_active: true }).sort({ level_order: 1 });
+      return await this.findAll({ is_active: true }, { sort: { level_order: 1 } });
     } catch (error) {
       throw new Error(`Failed to get influencer levels: ${error.message}`);
     }
@@ -169,46 +169,27 @@ class InfluencerLevel extends BaseModel {
   // Get overall influencer statistics
   async getInfluencerStats() {
     try {
-      const stats = await this.aggregate([
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'name',
-            foreignField: 'loyalty_tier',
-            as: 'users'
-          }
-        },
-        {
-          $project: {
-            level_name: '$name',
-            user_count: { $size: '$users' },
-            total_referrals: { $sum: '$users.referral_count' },
-            total_active_clients: { $sum: '$users.active_clients' },
-            total_monthly_sales: { $sum: '$users.monthly_sales' }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total_influencers: { $sum: '$user_count' },
-            total_networks: { $sum: '$total_referrals' },
-            total_active_clients: { $sum: '$total_active_clients' },
-            total_monthly_sales: { $sum: '$total_monthly_sales' },
-            avg_commission: { $avg: '$commission_rate' },
-            promotions_this_month: { $sum: 0 } // This would need to be calculated from promotion history
-          }
-        }
-      ]);
+      // Query users collection directly for influencers
+      const User = require('./User');
+      const userModel = new User();
+      
+      const influencers = await userModel.findAll({ 
+        role: 'influencer', 
+        status: 'active' 
+      });
 
-      return stats[0] || {
-        total_influencers: 0,
-        total_networks: 0,
-        total_active_clients: 0,
-        total_monthly_sales: 0,
-        avg_commission: 0,
-        promotions_this_month: 0
+      const stats = {
+        total_influencers: influencers.length,
+        total_networks: influencers.reduce((sum, inf) => sum + (inf.referral_count || 0), 0),
+        total_active_clients: influencers.reduce((sum, inf) => sum + (inf.active_clients || 0), 0),
+        total_monthly_sales: influencers.reduce((sum, inf) => sum + (inf.monthly_sales || 0), 0),
+        avg_commission: 0, // This would need to be calculated from commission data
+        promotions_this_month: 0 // This would need to be calculated from promotion history
       };
+
+      return stats;
     } catch (error) {
+      console.error('Error in getInfluencerStats:', error);
       throw new Error(`Failed to get influencer stats: ${error.message}`);
     }
   }

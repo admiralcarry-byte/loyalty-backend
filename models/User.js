@@ -223,6 +223,50 @@ class User extends BaseModel {
       sort: { last_login: -1 }
     });
   }
+
+  // Get total users count
+  async getTotalUsersCount() {
+    try {
+      const count = await this.model.countDocuments();
+      return count;
+    } catch (error) {
+      console.error('Error getting total users count:', error);
+      return 0;
+    }
+  }
+
+  // Get average growth rate (placeholder implementation)
+  async getAverageGrowthRate() {
+    try {
+      // This is a simplified implementation
+      // In a real scenario, you'd calculate based on user registration trends
+      const currentMonth = new Date();
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      
+      const currentMonthUsers = await this.model.countDocuments({
+        createdAt: {
+          $gte: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1),
+          $lt: new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
+        }
+      });
+      
+      const lastMonthUsers = await this.model.countDocuments({
+        createdAt: {
+          $gte: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1),
+          $lt: new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 1)
+        }
+      });
+      
+      if (lastMonthUsers === 0) return 0;
+      
+      const growthRate = ((currentMonthUsers - lastMonthUsers) / lastMonthUsers) * 100;
+      return Math.round(growthRate * 10) / 10; // Round to 1 decimal place
+    } catch (error) {
+      console.error('Error getting average growth rate:', error);
+      return 0;
+    }
+  }
 }
 
 module.exports = User; 

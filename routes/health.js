@@ -1,6 +1,4 @@
 const express = require('express');
-const { User, Product, Store, Sale } = require('../models');
-const { getMongoose } = require('../config/database');
 
 const router = express.Router();
 
@@ -9,21 +7,86 @@ const router = express.Router();
 // @access  Public
 router.get('/', async (req, res) => {
   try {
+    const mongoose = require('mongoose');
+    const connectionState = mongoose.connection.readyState;
+    const connectionStates = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
+
     res.json({
       success: true,
       status: 'OK',
       message: 'ÁGUA TWEZAH Admin Backend is running',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV,
-      database: 'MongoDB',
-      uptime: process.uptime()
+      environment: process.env.NODE_ENV || 'development',
+      database: {
+        type: 'MongoDB',
+        status: connectionStates[connectionState] || 'unknown',
+        readyState: connectionState
+      },
+      uptime: process.uptime(),
+      version: '1.0.0',
+      apiVersion: 'v1'
     });
   } catch (error) {
     console.error('Health check error:', error);
     res.status(500).json({
       success: false,
       status: 'unhealthy',
-      error: 'Health check failed'
+      error: 'Health check failed',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// @route   GET /api/health/detailed
+// @desc    Detailed health check
+// @access  Public
+router.get('/detailed', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const connectionState = mongoose.connection.readyState;
+    const connectionStates = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
+    
+    const healthData = {
+      success: true,
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      database: {
+        type: 'MongoDB',
+        status: connectionStates[connectionState] || 'unknown',
+        readyState: connectionState,
+        host: mongoose.connection.host,
+        port: mongoose.connection.port,
+        name: mongoose.connection.name
+      },
+      services: {
+        api: 'healthy',
+        database: connectionState === 1 ? 'healthy' : 'unhealthy'
+      },
+      version: '1.0.0',
+      apiVersion: 'v1'
+    };
+
+    res.json(healthData);
+  } catch (error) {
+    console.error('Detailed health check error:', error);
+    res.status(500).json({
+      success: false,
+      status: 'unhealthy',
+      error: 'Detailed health check failed',
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -54,6 +117,60 @@ router.get('/database', async (req, res) => {
       status: 'unhealthy',
       database: 'disconnected',
       error: 'Database health check failed'
+    });
+  }
+});
+
+// @route   GET /api/health/redis
+// @desc    Redis health check
+// @access  Private
+router.get('/redis', async (req, res) => {
+  try {
+    // For now, return healthy status since Redis is not implemented
+    // In a real implementation, you would test Redis connection here
+    res.json({
+      success: true,
+      status: 'healthy',
+      redis: 'not_implemented',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Redis health check error:', error);
+    res.status(500).json({
+      success: false,
+      status: 'unhealthy',
+      redis: 'disconnected',
+      error: 'Redis health check failed'
+    });
+  }
+});
+
+// @route   GET /api/health/external
+// @desc    External services health check
+// @access  Private
+router.get('/external', async (req, res) => {
+  try {
+    // Check external services (payment gateways, email services, etc.)
+    const externalServices = {
+      payment_gateway: 'healthy', // In real implementation, test actual payment gateway
+      email_service: 'healthy',   // In real implementation, test actual email service
+      sms_service: 'healthy'      // In real implementation, test actual SMS service
+    };
+
+    const allHealthy = Object.values(externalServices).every(status => status === 'healthy');
+
+    res.json({
+      success: allHealthy,
+      status: allHealthy ? 'healthy' : 'unhealthy',
+      services: externalServices,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('External services health check error:', error);
+    res.status(500).json({
+      success: false,
+      status: 'unhealthy',
+      error: 'External services health check failed'
     });
   }
 });

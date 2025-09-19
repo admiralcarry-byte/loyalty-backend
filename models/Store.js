@@ -16,6 +16,11 @@ class Store extends BaseModel {
     return await this.findAll({ status });
   }
 
+  // Find store by postal code (store number)
+  async findByCode(code) {
+    return await this.findOne({ 'address.postal_code': code });
+  }
+
   // Find stores by city
   async findByCity(city) {
     return await this.findAll({ city });

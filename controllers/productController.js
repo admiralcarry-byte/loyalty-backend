@@ -9,12 +9,12 @@ class ProductController {
       search = '',
       category = '',
       status = '',
-      sortBy = 'created_at',
+      sortBy = 'createdAt',
       sortOrder = 'DESC'
     } = req.query;
 
     const offset = (page - 1) * limit;
-    const validSortFields = ['id', 'name', 'price', 'stock_quantity', 'category', 'status', 'created_at'];
+    const validSortFields = ['id', 'name', 'price', 'stock_quantity', 'category', 'status', 'createdAt'];
     const validSortOrders = ['ASC', 'DESC'];
 
     if (!validSortFields.includes(sortBy)) {

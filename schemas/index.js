@@ -10,11 +10,10 @@ const Notification = require('./Notification');
 const AuditLog = require('./AuditLog');
 const CashbackRule = require('./CashbackRule');
 const CashbackTransaction = require('./CashbackTransaction');
-const PurchaseEntry = require('./PurchaseEntry');
+const Purchase = require('./Purchase');
 const Setting = require('./Setting');
 const RefreshToken = require('./RefreshToken');
 const OnlinePurchase = require('./OnlinePurchase');
-const OnlinePurchaseItem = require('./OnlinePurchaseItem');
 const BankDetails = require('./BankDetails');
 const InfluencerLevel = require('./InfluencerLevel');
 
@@ -31,11 +30,10 @@ module.exports = {
   AuditLog,
   CashbackRule,
   CashbackTransaction,
-  PurchaseEntry,
+  Purchase,
   Setting,
   RefreshToken,
   OnlinePurchase,
-  OnlinePurchaseItem,
   BankDetails,
   InfluencerLevel,
 }; 

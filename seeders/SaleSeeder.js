@@ -1,145 +1,257 @@
 const BaseSeeder = require('./BaseSeeder');
 const mongoose = require('mongoose');
 
-/**
- * Sale seeder - Creates sample sales transactions
- */
+// Import compiled models
+const Sale = require('../schemas/Sale');
+const User = require('../schemas/User');
+const Store = require('../schemas/Store');
+
 class SaleSeeder extends BaseSeeder {
-  async seed() {
-    console.log('💰 Seeding sales...');
-    
-    const existingCount = await this.getExistingCount('sales');
-    if (existingCount > 0) {
-      console.log(`ℹ️  Sales collection already has ${existingCount} records. Skipping.`);
-      return;
-    }
+  constructor() {
+    super('Sale');
+  }
 
-    // Get user and store IDs for relationships
-    const users = await mongoose.connection.db.collection('users').find({}).toArray();
-    const stores = await mongoose.connection.db.collection('stores').find({}).toArray();
-    const products = await mongoose.connection.db.collection('products').find({}).toArray();
+  async run() {
+    try {
+      console.log('🌱 Starting Sale seeding...');
 
-    if (users.length === 0 || stores.length === 0 || products.length === 0) {
-      console.log('⚠️  Skipping sales seeding - required collections (users, stores, products) are empty');
-      return;
-    }
+      // Ensure connection
+      await this.connect();
 
-    const sales = [];
-    const customerUsers = users.filter(u => u.role === 'customer');
-    const influencerUsers = users.filter(u => u.role === 'influencer');
+      // Get existing users and stores for references
+      const users = await User.find().limit(10);
+      const stores = await Store.find().limit(5);
 
-    // Generate sales for the last 90 days
-    for (let i = 0; i < 10; i++) {
-      const randomUser = customerUsers[Math.floor(Math.random() * customerUsers.length)];
-      const randomStore = stores[Math.floor(Math.random() * stores.length)];
-      const randomProduct = products[Math.floor(Math.random() * products.length)];
-      
-      // Random date within last 90 days
-      const daysAgo = Math.floor(Math.random() * 90);
-      const saleDate = new Date(Date.now() - (daysAgo * 24 * 60 * 60 * 1000));
-      
-      const quantity = Math.floor(Math.random() * 10) + 1;
-      const unitPrice = randomProduct.price;
-      const subtotal = quantity * unitPrice;
-      const discount = Math.random() > 0.7 ? subtotal * 0.1 : 0; // 30% chance of 10% discount
-      const tax = (subtotal - discount) * 0.15; // 15% tax
-      const total = subtotal - discount + tax;
-      
-      const pointsEarned = Math.floor(total * 0.1); // 10% of total as points
-      const cashbackEarned = total * (randomProduct.cashback_percentage / 100);
-
-      const sale = {
-        user_id: randomUser._id,
-        store_id: randomStore._id,
-        product_id: randomProduct._id,
-        sale_number: `SALE${Date.now()}${i.toString().padStart(3, '0')}`,
-        transaction_id: `TXN${Date.now()}${i.toString().padStart(3, '0')}`,
-        quantity: quantity,
-        unit_price: unitPrice,
-        subtotal: subtotal,
-        discount_amount: discount,
-        tax_amount: tax,
-        total_amount: total,
-        currency: 'USD',
-        payment_method: ['cash', 'mobile_money', 'bank_transfer', 'credit_card'][Math.floor(Math.random() * 4)],
-        payment_status: ['completed', 'pending', 'failed'][Math.floor(Math.random() * 3)],
-        order_status: ['delivered', 'in_transit', 'processing', 'cancelled'][Math.floor(Math.random() * 4)],
-        points_earned: pointsEarned,
-        cashback_earned: cashbackEarned,
-        loyalty_tier_at_purchase: randomUser.loyalty_tier,
-        campaign_id: null, // Will be set if campaign applies
-        referral_code: randomUser.referral_code,
-        notes: `Sale of ${quantity} ${randomProduct.name}`,
-        metadata: {
-          original_price: unitPrice,
-          discount_reason: discount > 0 ? 'promotional' : null,
-          delivery_address: randomUser.address,
-          customer_notes: Math.random() > 0.8 ? 'Special delivery instructions' : null
-        }
-      };
-
-      // Add some sales with campaigns
-      if (Math.random() > 0.8) {
-        sale.campaign_id = 'campaign_id_placeholder'; // Would be actual campaign ID
-        sale.metadata.campaign_applied = true;
+      if (users.length === 0) {
+        console.log('⚠️  No users found. Please run UserSeeder first.');
+        return;
       }
 
-      sales.push(sale);
-    }
+      if (stores.length === 0) {
+        console.log('⚠️  No stores found. Please run StoreSeeder first.');
+        return;
+      }
 
-    // Add some influencer sales
-    for (let i = 0; i < 0; i++) {
-      const randomUser = influencerUsers[Math.floor(Math.random() * influencerUsers.length)];
-      const randomStore = stores[Math.floor(Math.random() * stores.length)];
-      const randomProduct = products[Math.floor(Math.random() * products.length)];
-      
-      const daysAgo = Math.floor(Math.random() * 30);
-      const saleDate = new Date(Date.now() - (daysAgo * 24 * 60 * 60 * 1000));
-      
-      const quantity = Math.floor(Math.random() * 5) + 1;
-      const unitPrice = randomProduct.price;
-      const subtotal = quantity * unitPrice;
-      const discount = subtotal * 0.15; // Influencers get 15% discount
-      const tax = (subtotal - discount) * 0.15;
-      const total = subtotal - discount + tax;
-      
-      const pointsEarned = Math.floor(total * 0.15); // Influencers get 15% points
-      const cashbackEarned = total * (randomProduct.cashback_percentage / 100);
+      // Sample invoice data for water sales
+      const sampleInvoices = [
+        {
+          purchaser_name: 'Kevin Customer',
+          purchaser_phone: '8990989899',
+          purchaser_email: 'kevin@example.com',
+          liters_purchased: 20,
+          total_amount: 180.00,
+          store_number: 'ST001',
+          store_number_hash: Buffer.from('ST001').toString('base64'),
+          qr_code_data: Buffer.from('ST001').toString('base64'),
+          payment_method: 'cash',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'João Silva',
+          purchaser_phone: '+55 11 99999-1111',
+          purchaser_email: 'joao.silva@email.com',
+          liters_purchased: 20,
+          total_amount: 45.00,
+          store_number: 'ST001',
+          store_number_hash: Buffer.from('ST001').toString('base64'),
+          qr_code_data: Buffer.from('ST001').toString('base64'),
+          payment_method: 'pix',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'Maria Santos',
+          purchaser_phone: '+55 11 99999-2222',
+          purchaser_email: 'maria.santos@email.com',
+          liters_purchased: 15,
+          total_amount: 33.75,
+          store_number: 'ST002',
+          store_number_hash: Buffer.from('ST002').toString('base64'),
+          qr_code_data: Buffer.from('ST002').toString('base64'),
+          payment_method: 'cash',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'Pedro Oliveira',
+          purchaser_phone: '+55 11 99999-3333',
+          purchaser_email: 'pedro.oliveira@email.com',
+          liters_purchased: 30,
+          total_amount: 67.50,
+          store_number: 'ST001',
+          store_number_hash: Buffer.from('ST001').toString('base64'),
+          qr_code_data: Buffer.from('ST001').toString('base64'),
+          payment_method: 'card',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'Ana Costa',
+          purchaser_phone: '+55 11 99999-4444',
+          purchaser_email: 'ana.costa@email.com',
+          liters_purchased: 25,
+          total_amount: 56.25,
+          store_number: 'ST003',
+          store_number_hash: Buffer.from('ST003').toString('base64'),
+          qr_code_data: Buffer.from('ST003').toString('base64'),
+          payment_method: 'pix',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'Carlos Ferreira',
+          purchaser_phone: '+55 11 99999-5555',
+          purchaser_email: 'carlos.ferreira@email.com',
+          liters_purchased: 12,
+          total_amount: 27.00,
+          store_number: 'ST002',
+          store_number_hash: Buffer.from('ST002').toString('base64'),
+          qr_code_data: Buffer.from('ST002').toString('base64'),
+          payment_method: 'cash',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'Lucia Rodrigues',
+          purchaser_phone: '+55 11 99999-6666',
+          purchaser_email: 'lucia.rodrigues@email.com',
+          liters_purchased: 18,
+          total_amount: 40.50,
+          store_number: 'ST001',
+          store_number_hash: Buffer.from('ST001').toString('base64'),
+          qr_code_data: Buffer.from('ST001').toString('base64'),
+          payment_method: 'bank_transfer',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'Roberto Alves',
+          purchaser_phone: '+55 11 99999-7777',
+          purchaser_email: 'roberto.alves@email.com',
+          liters_purchased: 35,
+          total_amount: 78.75,
+          store_number: 'ST004',
+          store_number_hash: Buffer.from('ST004').toString('base64'),
+          qr_code_data: Buffer.from('ST004').toString('base64'),
+          payment_method: 'pix',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'Fernanda Lima',
+          purchaser_phone: '+55 11 99999-8888',
+          purchaser_email: 'fernanda.lima@email.com',
+          liters_purchased: 22,
+          total_amount: 49.50,
+          store_number: 'ST003',
+          store_number_hash: Buffer.from('ST003').toString('base64'),
+          qr_code_data: Buffer.from('ST003').toString('base64'),
+          payment_method: 'card',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'Marcos Pereira',
+          purchaser_phone: '+55 11 99999-9999',
+          purchaser_email: 'marcos.pereira@email.com',
+          liters_purchased: 28,
+          total_amount: 63.00,
+          store_number: 'ST002',
+          store_number_hash: Buffer.from('ST002').toString('base64'),
+          qr_code_data: Buffer.from('ST002').toString('base64'),
+          payment_method: 'wallet',
+          status: 'completed'
+        },
+        {
+          purchaser_name: 'Patricia Souza',
+          purchaser_phone: '+55 11 99999-0000',
+          purchaser_email: 'patricia.souza@email.com',
+          liters_purchased: 16,
+          total_amount: 36.00,
+          store_number: 'ST005',
+          store_number_hash: Buffer.from('ST005').toString('base64'),
+          qr_code_data: Buffer.from('ST005').toString('base64'),
+          payment_method: 'pix',
+          status: 'completed'
+        }
+      ];
 
-      const sale = {
-        user_id: randomUser._id,
+      const sales = [];
+      const now = new Date();
+
+      // Find Kevin user specifically
+      const kevinUser = users.find(user => user.first_name === 'Kevin');
+      
+      for (let i = 0; i < sampleInvoices.length; i++) {
+        const invoice = sampleInvoices[i];
+        // Use Kevin for the first invoice (Kevin's sale), random for others
+        const selectedUser = i === 0 && kevinUser ? kevinUser : users[Math.floor(Math.random() * users.length)];
+        const randomStore = stores[Math.floor(Math.random() * stores.length)];
+        // Create a simple product reference for water sales
+        const randomProduct = {
+          _id: new mongoose.Types.ObjectId(),
+          name: 'ÁGUA TWEZAH Premium',
+          sku: 'AT-PREMIUM-500',
+          price: { current: 2.25 }
+        };
+      
+        const saleData = {
+          // Required fields
+          user_id: selectedUser._id,
+          customer: selectedUser._id,
+          quantity: invoice.liters_purchased,
+          total_amount: invoice.total_amount,
+          currency: 'BRL',
+          order_status: 'completed',
+          status: 'completed',
+          payment_method: invoice.payment_method,
+          
+          // Invoice-specific fields
+          purchaser_name: invoice.purchaser_name,
+          purchaser_phone: invoice.purchaser_phone,
+          purchaser_email: invoice.purchaser_email,
+          liters_purchased: invoice.liters_purchased,
+          store_number: invoice.store_number,
+          store_number_hash: invoice.store_number_hash,
+          qr_code_data: invoice.qr_code_data,
+          
+          // Optional fields with defaults
+          unit_price: invoice.total_amount / invoice.liters_purchased,
+          subtotal: invoice.total_amount,
+          discount_amount: 0,
+          tax_amount: 0,
+          points_earned: Math.floor(invoice.total_amount * 0.1), // 10% points
+          cashback_earned: Math.floor(invoice.total_amount * 0.05), // 5% cashback
+          loyalty_tier_at_purchase: 'lead',
+          
+          // References (optional)
         store_id: randomStore._id,
         product_id: randomProduct._id,
-        sale_number: `SALE${Date.now()}${(150 + i).toString().padStart(3, '0')}`,
-        transaction_id: `TXN${Date.now()}${(150 + i).toString().padStart(3, '0')}`,
-        quantity: quantity,
-        unit_price: unitPrice,
-        subtotal: subtotal,
-        discount_amount: discount,
-        tax_amount: tax,
-        total_amount: total,
-        currency: 'USD',
-        payment_method: ['mobile_money', 'bank_transfer', 'credit_card'][Math.floor(Math.random() * 3)],
-        payment_status: 'completed',
-        order_status: ['delivered', 'in_transit'][Math.floor(Math.random() * 2)],
-        points_earned: pointsEarned,
-        cashback_earned: cashbackEarned,
-        loyalty_tier_at_purchase: randomUser.loyalty_tier,
-        campaign_id: null,
-        referral_code: randomUser.referral_code,
-        notes: `Influencer sale of ${quantity} ${randomProduct.name}`,
-        metadata: {
-          original_price: unitPrice,
-          discount_reason: 'influencer_discount',
-          delivery_address: randomUser.address,
-          influencer_commission: total * 0.1 // 10% commission
-        }
-      };
+          customer: selectedUser._id,
+          
+          // Timestamps
+          created_at: new Date(now.getTime() - (i * 24 * 60 * 60 * 1000)), // Spread over last 10 days
+          updated_at: new Date(now.getTime() - (i * 24 * 60 * 60 * 1000)),
+          
+          // Additional fields
+          notes: `Invoice generated for ${invoice.liters_purchased}L water purchase at ${invoice.store_number}`
+        };
 
-      sales.push(sale);
+        sales.push(saleData);
+      }
+
+      // Clear existing sales
+      await Sale.deleteMany({});
+      console.log('🗑️  Cleared existing sales');
+
+      // Insert new sales
+      const createdSales = await Sale.insertMany(sales);
+      console.log(`✅ Created ${createdSales.length} sales with invoice data`);
+
+      // Log sample data
+      console.log('\n📊 Sample Sale Data:');
+      createdSales.slice(0, 3).forEach((sale, index) => {
+        console.log(`${index + 1}. ${sale.purchaser_name} - ${sale.liters_purchased}L - R$ ${sale.total_amount} - ${sale.store_number}`);
+      });
+
+      return createdSales;
+
+    } catch (error) {
+      console.error('❌ Error seeding sales:', error);
+      throw error;
     }
-
-    await this.seedCollection('sales', sales, { clearFirst: false });
   }
 }
 

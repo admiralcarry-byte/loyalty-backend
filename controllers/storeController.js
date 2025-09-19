@@ -1,5 +1,7 @@
 const Store = require('../models/Store');
 
+const storeModel = new Store();
+
 class StoreController {
   // Get all stores with pagination and filters
   async getAllStores(req) {
@@ -36,7 +38,7 @@ class StoreController {
       // Get stores with pagination
       const storeModel = new Store();
       const stores = await storeModel.findAll(query, {
-        sort: { createdAt: -1 },
+        sort: { created_at: -1 },
         skip: offset,
         limit: parseInt(limit)
       });
@@ -76,12 +78,12 @@ class StoreController {
       status = '',
       city = '',
       country = '',
-      sortBy = 'created_at',
+      sortBy = 'createdAt',
       sortOrder = 'DESC'
     } = req.query;
 
     const offset = (page - 1) * limit;
-    const validSortFields = ['id', 'name', 'city', 'country', 'status', 'created_at'];
+    const validSortFields = ['id', 'name', 'city', 'country', 'status', 'createdAt'];
     const validSortOrders = ['ASC', 'DESC'];
 
     if (!validSortFields.includes(sortBy)) {
@@ -134,13 +136,14 @@ class StoreController {
     if (type) query.type = type;
 
     // Get total count
-    const total = await Store.count(query);
+      const total = await storeModel.count(query);
 
     // Get stores with pagination
-    const stores = await Store.find(query)
-      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
-      .limit(parseInt(limit))
-      .skip(offset);
+    const stores = await storeModel.findAll(query, {
+      sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
+      limit: parseInt(limit),
+      skip: offset
+    });
 
     return {
       stores,
@@ -155,7 +158,7 @@ class StoreController {
 
   // Get store by ID
   async getStoreById(id) {
-    const store = await Store.findById(id);
+    const store = await storeModel.findById(id);
     if (!store) {
       throw new Error('Store not found');
     }
@@ -169,43 +172,80 @@ class StoreController {
 
   // Create new store
   async createStore(storeData) {
-    // Check if store name already exists in the same city
-    const existingStore = await Store.findOne({
+    // Transform flat API data to nested database schema
+    const transformedData = {
       name: storeData.name,
-      city: storeData.city
+      status: storeData.status || 'active',
+      address: {
+        street: storeData.address,
+        city: storeData.city,
+        state: storeData.state,
+        postal_code: storeData.postal_code,
+        country: storeData.country || 'Angola'
+      },
+      contact: {
+        phone: storeData.phone,
+        email: storeData.email
+      },
+      manager: storeData.manager || {}
+    };
+
+    // Check if store name already exists in the same city
+    const existingStore = await storeModel.findOne({
+      name: transformedData.name,
+      'address.city': transformedData.address.city
     });
 
     if (existingStore) {
       throw new Error('Store with this name already exists in this city');
     }
 
-    return await Store.create(storeData);
+    return await storeModel.create(transformedData);
   }
+
 
   // Update store
   async updateStore(id, storeData) {
-    const store = await Store.findById(id);
+    const store = await storeModel.findById(id);
     if (!store) {
       throw new Error('Store not found');
     }
 
+    // Transform flat API data to nested database schema
+    const transformedData = {
+      name: storeData.name,
+      status: storeData.status,
+      address: {
+        street: storeData.address,
+        city: storeData.city,
+        state: storeData.state,
+        postal_code: storeData.postal_code,
+        country: storeData.country || 'Angola'
+      },
+      contact: {
+        phone: storeData.phone,
+        email: storeData.email
+      },
+      manager: storeData.manager || {}
+    };
+
     // Check if store name is being changed and if it already exists
     if (storeData.name && storeData.name !== store.name) {
-      const existingStore = await Store.findOne({
-        name: storeData.name,
-        city: storeData.city || store.city
+      const existingStore = await storeModel.findOne({
+        name: transformedData.name,
+        'address.city': transformedData.address.city
       });
       if (existingStore) {
         throw new Error('Store with this name already exists in this city');
       }
     }
 
-    return await Store.updateById(id, storeData);
+    return await storeModel.updateById(id, transformedData);
   }
 
   // Delete store
   async deleteStore(id) {
-    const store = await Store.findById(id);
+    const store = await storeModel.findById(id);
     if (!store) {
       throw new Error('Store not found');
     }
@@ -216,12 +256,12 @@ class StoreController {
       throw new Error('Cannot delete store with related data');
     }
 
-    return await Store.deleteById(id);
+    return await storeModel.deleteById(id);
   }
 
   // Update store status
   async updateStoreStatus(id, status) {
-    const store = await Store.findById(id);
+    const store = await storeModel.findById(id);
     if (!store) {
       throw new Error('Store not found');
     }
@@ -231,7 +271,7 @@ class StoreController {
       throw new Error('Invalid status');
     }
 
-    return await Store.updateById(id, { status });
+    return await storeModel.updateById(id, { status });
   }
 
   // Get stores by location
@@ -297,23 +337,27 @@ class StoreController {
 
   // Check if store has related data
   async checkStoreRelatedData(storeId) {
-    // Check various tables for related data
-    const tables = ['sales', 'purchases', 'commissions', 'campaigns'];
-    let hasData = false;
+    try {
+      // Check various collections for related data using Mongoose models (Commission table removed)
+      const Sales = require('../models/Sale');
+      const Purchases = require('../models/Purchase');
+      const Campaigns = require('../models/Campaign');
 
-    const storeInstance = new Store();
-    for (const table of tables) {
-      const result = await storeInstance.executeQuery(
-        `SELECT COUNT(*) as count FROM ${table} WHERE store_id = ?`,
-        [storeId]
-      );
-      if (result[0].count > 0) {
-        hasData = true;
-        break;
-      }
+      // Create model instances to access the Mongoose models
+      const salesModel = new Sales();
+      const purchasesModel = new Purchases();
+      const campaignsModel = new Campaigns();
+
+      const salesCount = await salesModel.model.countDocuments({ store_id: storeId });
+      const purchasesCount = await purchasesModel.model.countDocuments({ store_id: storeId });
+      const campaignsCount = await campaignsModel.model.countDocuments({ store_id: storeId });
+
+      return salesCount > 0 || purchasesCount > 0 || campaignsCount > 0;
+    } catch (error) {
+      console.error('Error checking store related data:', error);
+      // If there's an error checking, allow deletion to proceed
+      return false;
     }
-
-    return hasData;
   }
 
   // Search stores
@@ -332,12 +376,40 @@ class StoreController {
 
   // Get stores by city
   async getStoresByCity(city) {
-    return await Store.findAll({ city });
+    return await storeModel.findAll({ city });
   }
 
   // Get stores by country
   async getStoresByCountry(country) {
-    return await Store.findAll({ country });
+    return await storeModel.findAll({ country });
+  }
+
+  // Get stores overview statistics
+  async getStoresOverviewStats() {
+    try {
+      const storeModel = new Store();
+      
+      // Get comprehensive store statistics
+      const stats = await storeModel.executeQuery(`
+        SELECT 
+          COUNT(*) as total_stores,
+          COUNT(CASE WHEN status = 'active' THEN 1 END) as active_stores,
+          COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_stores,
+          COUNT(CASE WHEN status = 'maintenance' THEN 1 END) as maintenance_stores,
+          COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed_stores,
+          COUNT(DISTINCT city) as unique_cities,
+          COUNT(DISTINCT country) as unique_countries,
+          COUNT(CASE WHEN DATE(created_at) = CURDATE() THEN 1 END) as new_stores_today,
+          COUNT(CASE WHEN DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN 1 END) as new_stores_week,
+          COUNT(CASE WHEN DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as new_stores_month
+        FROM stores
+      `);
+
+      return stats[0] || {};
+    } catch (error) {
+      console.error('Get stores overview stats error:', error);
+      throw error;
+    }
   }
 }
 

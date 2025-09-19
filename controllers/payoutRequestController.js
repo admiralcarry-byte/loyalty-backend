@@ -11,12 +11,12 @@ class PayoutRequestController {
       user_id = '',
       start_date = '',
       end_date = '',
-      sortBy = 'created_at',
+      sortBy = 'createdAt',
       sortOrder = 'DESC'
     } = req.query;
 
     const offset = (page - 1) * limit;
-    const validSortFields = ['created_at', 'amount', 'status', 'approval.requested_date'];
+    const validSortFields = ['createdAt', 'amount', 'status', 'approval.requested_date'];
     const validSortOrders = ['ASC', 'DESC'];
 
     if (!validSortFields.includes(sortBy)) {
@@ -110,7 +110,7 @@ class PayoutRequestController {
     }
 
     // Add sorting
-    const sortField = sortBy === 'created_at' ? 'createdAt' : sortBy;
+    const sortField = sortBy === 'createdAt' ? 'createdAt' : sortBy;
     const sortDirection = sortOrder.toUpperCase() === 'ASC' ? 1 : -1;
     pipeline.push({ $sort: { [sortField]: sortDirection } });
 

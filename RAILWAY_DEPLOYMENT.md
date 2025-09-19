@@ -50,14 +50,16 @@ INFLUENCER_COMMISSION_RATE=10
 
 ### 2. Railway Configuration Files
 
-- `railway.json`: Railway deployment configuration
-- `nixpacks.toml`: Build configuration for Railway
+- `railway.json`: Railway deployment configuration (uses Dockerfile)
+- `Dockerfile`: Docker configuration for Railway deployment
+- `.dockerignore`: Optimizes Docker build by excluding unnecessary files
 
 ### 3. Deployment Steps
 
 1. **Connect Repository**: Connect your GitHub repository to Railway
 2. **Set Environment Variables**: Add all the environment variables listed above
-3. **Deploy**: Railway will automatically deploy using the configuration files
+3. **Deploy**: Railway will automatically deploy using Dockerfile (more reliable than Nixpacks)
+4. **Monitor Build**: Check the build logs for any issues
 
 ### 4. Database Setup
 

@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const database = require('./config/database');
+const fontHelper = require('./utils/fontHelper');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
@@ -67,6 +68,10 @@ function findAvailablePort(startPort) {
 // Function to start the server
 async function startServer() {
   try {
+    console.log('🔄 Initializing font helper...');
+    await fontHelper.initialize();
+    console.log('✅ Font helper initialized');
+    
     console.log('🔄 Starting database connection...');
     await database.connect();
     console.log('✅ MongoDB connected successfully');

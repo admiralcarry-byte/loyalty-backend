@@ -1,10 +1,10 @@
-# Use Node.js 20 Alpine image for compatibility with simple-xml-to-json
+# Railway-optimized Dockerfile for OCR and QR code generation
 FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies required for native modules (canvas, sharp, etc.)
+# Install comprehensive system dependencies for text rendering and OCR
 RUN apk add --no-cache \
     python3 \
     make \
@@ -24,7 +24,12 @@ RUN apk add --no-cache \
     ttf-opensans \
     font-noto \
     font-noto-cjk \
-    font-noto-emoji
+    font-noto-emoji \
+    tesseract-ocr \
+    tesseract-ocr-data-eng \
+    tesseract-ocr-data-por \
+    poppler-utils \
+    ghostscript
 
 # Copy package files
 COPY package*.json ./
@@ -37,6 +42,10 @@ COPY . .
 
 # Create uploads directory
 RUN mkdir -p uploads/qr-codes uploads/receipts
+
+# Set environment variables for better font rendering
+ENV FONTCONFIG_PATH=/etc/fonts
+ENV FONTCONFIG_FILE=/etc/fonts/fonts.conf
 
 # Expose port
 EXPOSE 5000

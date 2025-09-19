@@ -22,7 +22,8 @@
     "seed:status": "node scripts/seed.js status",
     "seed:clear": "node scripts/seed.js clear",
     "setup-complete": "node scripts/setup-complete.js",
-    "create-env": "node scripts/create-env.js"
+    "create-env": "node scripts/create-env.js",
+    "local-dev": "npm run setup-db && npm run seed && npm run dev"
   },
   "keywords": [
     "express",

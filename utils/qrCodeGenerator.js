@@ -2,24 +2,28 @@ const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage, registerFont } = require('canvas');
+const fontHelper = require('./fontHelper');
 
 // Font configuration for different environments
 const FONT_CONFIG = {
-  // Primary fonts to try in order
-  primary: ['sans-serif', 'DejaVu Sans', 'Liberation Sans', 'Arial', 'Helvetica'],
+  // Primary fonts to try in order (Railway/Alpine compatible)
+  primary: [
+    'DejaVu Sans',
+    'Liberation Sans', 
+    'Open Sans',
+    'Noto Sans',
+    'Arial',
+    'Helvetica',
+    'sans-serif'
+  ],
   // Fallback for environments without font support
   fallback: 'sans-serif'
 };
 
 // Function to get the best available font
 function getBestFont(weight = 'normal', size = '16px') {
-  // In production environments, use sans-serif as it's universally available
-  if (process.env.NODE_ENV === 'production') {
-    return `${weight} ${size} sans-serif`;
-  }
-  
-  // In development, try to use better fonts if available
-  return `${weight} ${size} sans-serif`;
+  // Use font helper for better font detection in Railway
+  return fontHelper.generateFontCSS(weight, size, FONT_CONFIG.primary);
 }
 
 /**

@@ -1099,10 +1099,15 @@ router.post('/upload-receipt', [
       
       // If still not found, use the provided userId as fallback
       if (!user) {
-        user = await userModel.findById(userId);
-        console.log('User found by provided ID:', user ? 'YES' : 'NO');
-        if (user) {
-          console.log('User details:', { id: user._id, name: user.first_name + ' ' + user.last_name, email: user.email });
+        // Check if userId is a valid ObjectId before querying
+        if (userId && userId !== 'placeholder-user-id' && mongoose.Types.ObjectId.isValid(userId)) {
+          user = await userModel.findById(userId);
+          console.log('User found by provided ID:', user ? 'YES' : 'NO');
+          if (user) {
+            console.log('User details:', { id: user._id, name: user.first_name + ' ' + user.last_name, email: user.email });
+          }
+        } else {
+          console.log('User ID is placeholder or invalid, skipping database lookup');
         }
       }
       
@@ -1126,10 +1131,15 @@ router.post('/upload-receipt', [
       
       // If still not found, use the provided storeId as fallback
       if (!store) {
-        store = await storeModel.findById(storeId);
-        console.log('Store found by provided ID:', store ? 'YES' : 'NO');
-        if (store) {
-          console.log('Store details:', { id: store._id, name: store.name, code: store.code });
+        // Check if storeId is a valid ObjectId before querying
+        if (storeId && storeId !== 'placeholder-store-id' && mongoose.Types.ObjectId.isValid(storeId)) {
+          store = await storeModel.findById(storeId);
+          console.log('Store found by provided ID:', store ? 'YES' : 'NO');
+          if (store) {
+            console.log('Store details:', { id: store._id, name: store.name, code: store.code });
+          }
+        } else {
+          console.log('Store ID is placeholder or invalid, skipping database lookup');
         }
       }
       
@@ -1138,7 +1148,12 @@ router.post('/upload-receipt', [
         return res.status(400).json({
           success: false,
           error: 'User not found',
-          details: 'Could not find a matching user in the database. Please ensure the customer information is correct.'
+          details: 'Could not find a matching user in the database. Please ensure the customer information is correct or create a new user first.',
+          extractedData: {
+            customerName: ocrResult.parsedData.customerName,
+            email: ocrResult.parsedData.email,
+            phoneNumber: ocrResult.parsedData.phoneNumber
+          }
         });
       }
       
@@ -1147,7 +1162,11 @@ router.post('/upload-receipt', [
         return res.status(400).json({
           success: false,
           error: 'Store not found',
-          details: 'Could not find a matching store in the database. Please ensure the store information is correct.'
+          details: 'Could not find a matching store in the database. Please ensure the store information is correct or create a new store first.',
+          extractedData: {
+            storeName: ocrResult.parsedData.storeName,
+            storeNumber: qrResult.success ? qrResult.extractedFields.storeNumber : 'Not found in QR code'
+          }
         });
       }
       

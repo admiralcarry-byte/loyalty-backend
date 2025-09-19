@@ -1,4 +1,5 @@
 const express = require('express');
+const { User, Product, Store, Sale } = require('../models');
 
 const router = express.Router();
 
@@ -184,32 +185,48 @@ router.get('/models', async (req, res) => {
 
     // Test User model
     try {
-      const userCount = await User.count();
-      healthChecks.users = { status: 'healthy', count: userCount };
+      if (User && typeof User.count === 'function') {
+        const userCount = await User.count();
+        healthChecks.users = { status: 'healthy', count: userCount };
+      } else {
+        healthChecks.users = { status: 'unhealthy', error: 'User model not available' };
+      }
     } catch (error) {
       healthChecks.users = { status: 'unhealthy', error: error.message };
     }
 
     // Test Product model
     try {
-      const productCount = await Product.count();
-      healthChecks.products = { status: 'healthy', count: productCount };
+      if (Product && typeof Product.count === 'function') {
+        const productCount = await Product.count();
+        healthChecks.products = { status: 'healthy', count: productCount };
+      } else {
+        healthChecks.products = { status: 'unhealthy', error: 'Product model not available' };
+      }
     } catch (error) {
       healthChecks.products = { status: 'unhealthy', error: error.message };
     }
 
     // Test Store model
     try {
-      const storeCount = await Store.count();
-      healthChecks.stores = { status: 'healthy', count: storeCount };
+      if (Store && typeof Store.count === 'function') {
+        const storeCount = await Store.count();
+        healthChecks.stores = { status: 'healthy', count: storeCount };
+      } else {
+        healthChecks.stores = { status: 'unhealthy', error: 'Store model not available' };
+      }
     } catch (error) {
       healthChecks.stores = { status: 'unhealthy', error: error.message };
     }
 
     // Test Sale model
     try {
-      const saleCount = await Sale.count();
-      healthChecks.sales = { status: 'healthy', count: saleCount };
+      if (Sale && typeof Sale.count === 'function') {
+        const saleCount = await Sale.count();
+        healthChecks.sales = { status: 'healthy', count: saleCount };
+      } else {
+        healthChecks.sales = { status: 'unhealthy', error: 'Sale model not available' };
+      }
     } catch (error) {
       healthChecks.sales = { status: 'unhealthy', error: error.message };
     }
@@ -265,19 +282,36 @@ router.get('/full', async (req, res) => {
     try {
       const modelChecks = {};
       
-      const userCount = await User.count();
-      modelChecks.users = { status: 'healthy', count: userCount };
+      if (User && typeof User.count === 'function') {
+        const userCount = await User.count();
+        modelChecks.users = { status: 'healthy', count: userCount };
+      } else {
+        modelChecks.users = { status: 'unhealthy', error: 'User model not available' };
+      }
       
-      const productCount = await Product.count();
-      modelChecks.products = { status: 'healthy', count: productCount };
+      if (Product && typeof Product.count === 'function') {
+        const productCount = await Product.count();
+        modelChecks.products = { status: 'healthy', count: productCount };
+      } else {
+        modelChecks.products = { status: 'unhealthy', error: 'Product model not available' };
+      }
       
-      const storeCount = await Store.count();
-      modelChecks.stores = { status: 'healthy', count: storeCount };
+      if (Store && typeof Store.count === 'function') {
+        const storeCount = await Store.count();
+        modelChecks.stores = { status: 'healthy', count: storeCount };
+      } else {
+        modelChecks.stores = { status: 'unhealthy', error: 'Store model not available' };
+      }
       
-      const saleCount = await Sale.count();
-      modelChecks.sales = { status: 'healthy', count: saleCount };
+      if (Sale && typeof Sale.count === 'function') {
+        const saleCount = await Sale.count();
+        modelChecks.sales = { status: 'healthy', count: saleCount };
+      } else {
+        modelChecks.sales = { status: 'unhealthy', error: 'Sale model not available' };
+      }
 
-      healthReport.models = { status: 'healthy', details: modelChecks };
+      const allModelsHealthy = Object.values(modelChecks).every(check => check.status === 'healthy');
+      healthReport.models = { status: allModelsHealthy ? 'healthy' : 'unhealthy', details: modelChecks };
     } catch (error) {
       healthReport.models = { status: 'unhealthy', error: error.message };
     }

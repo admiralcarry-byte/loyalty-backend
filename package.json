@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:minimal": "node start-minimal.js",
     "dev": "nodemon server.js",
     "setup-mongodb": "node scripts/setup-mongodb.js",
     "seed-mongodb": "node scripts/seed-mongodb.js",

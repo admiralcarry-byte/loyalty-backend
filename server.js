@@ -28,7 +28,7 @@ const walletRoutes = require('./routes/wallets');
 const auditRoutes = require('./routes/audit');
 const analyticsRoutes = require('./routes/analytics');
 const exportRoutes = require('./routes/export');
-const healthRoutes = require('./routes/health');
+const healthRoutes = require('./routes/health-simple');
 const searchRoutes = require('./routes/search');
 const bulkRoutes = require('./routes/bulk');
 const dashboardRoutes = require('./routes/dashboard');
@@ -68,9 +68,10 @@ function findAvailablePort(startPort) {
 // Function to start the server
 async function startServer() {
   try {
-    console.log('🔄 Initializing font helper...');
-    await fontHelper.initialize();
-    console.log('✅ Font helper initialized');
+    // Initialize font helper asynchronously (non-blocking)
+    fontHelper.initialize().catch(err => {
+      console.warn('Font helper initialization failed:', err.message);
+    });
     
     console.log('🔄 Starting database connection...');
     await database.connect();
@@ -112,7 +113,8 @@ const corsOptions = {
     'http://localhost:8080',
     'http://localhost:8081',
     'https://loyalty-frontend.netlify.app',
-    'https://loyalty-admin.netlify.app'
+    'https://loyalty-admin.netlify.app',
+    'https://loyalty-backend-production-8e32.up.railway.app'
   ],   
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,

@@ -13,7 +13,7 @@ class Database {
         console.log('✅ Already connected to MongoDB');
         return this.connection;
       }
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/aguatwezah_admin_local';
+      const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://admiralcarry_db_user:hRbz6MRdicUoyLZk@loyalty-cloud.k62anvl.mongodb.net/aguatwezah_admin';
       
       // Configure mongoose buffering globally
       mongoose.set('bufferCommands', false);

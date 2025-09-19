@@ -140,9 +140,14 @@ class FontHelper {
    * Initialize font detection
    */
   async initialize() {
-    if (this.isRailwayEnvironment()) {
-      console.log('Railway environment detected, initializing font detection...');
-      await this.detectAvailableFonts();
+    try {
+      if (this.isRailwayEnvironment()) {
+        console.log('Railway environment detected, initializing font detection...');
+        await this.detectAvailableFonts();
+      }
+    } catch (error) {
+      console.warn('Font detection failed, continuing with fallback fonts:', error.message);
+      // Don't throw error, just use fallback fonts
     }
   }
 }

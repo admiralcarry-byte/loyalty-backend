@@ -4,9 +4,9 @@
 const SIMULATION_CONFIG = {
   // Global simulation mode
   global: {
-    enabled: true, // Set to false to use real APIs
-    mode: 'simulation', // 'simulation' | 'hybrid' | 'production'
-    environment: process.env.NODE_ENV || 'development'
+    enabled: false, // Set to false to use real APIs
+    mode: 'production', // 'simulation' | 'hybrid' | 'production'
+    environment: process.env.NODE_ENV || 'production'
   },
 
   // Feature-specific simulation settings
@@ -54,7 +54,7 @@ const SIMULATION_CONFIG = {
     // Billing System
     billing: {
       enabled: true,
-      useSimulation: true,
+      useSimulation: false,
       realApiEndpoint: '/api/billing',
       simulationDelay: 1200
     },
@@ -314,7 +314,7 @@ const getRealApiEndpoint = (feature) => {
 
 // Environment-specific overrides
 const getEnvironmentConfig = () => {
-  const env = process.env.NODE_ENV || 'development';
+  const env = process.env.NODE_ENV || 'production';
   
   switch (env) {
     case 'production':

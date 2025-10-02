@@ -10,6 +10,15 @@ const commissionSettingsSchema = new mongoose.Schema({
     default: 5.0
   },
   
+  // Cashback rate configuration
+  cashback_rate: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 100,
+    default: 2.0
+  },
+  
   // Tier multipliers for different loyalty levels
   tier_multipliers: {
     lead: {
@@ -123,6 +132,7 @@ commissionSettingsSchema.statics.getCurrentSettings = async function() {
     // Return default settings if none exist
     return {
       base_commission_rate: 5.0,
+      cashback_rate: 2.0,
       tier_multipliers: {
         lead: 1.0,
         silver: 1.2,

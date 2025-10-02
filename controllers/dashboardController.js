@@ -35,8 +35,8 @@ class DashboardController {
   // Get user statistics (excluding staff - admins and managers)
   async getUserStats() {
     try {
-      // Define customer roles (exclude staff)
-      const customerRoles = ['user', 'customer', 'influencer'];
+      // Define customer roles (exclude staff and influencers)
+      const customerRoles = ['user', 'customer'];
       const staffRoles = ['admin', 'manager', 'staff'];
       
       // Get date ranges for comparison
@@ -472,94 +472,97 @@ class DashboardController {
         ? stats.total_commission_amount / stats.total_commissions 
         : 0;
 
-      // Get top influencers from sales data - only users with 'influencer' role
+      // Get top influencers - show network-based performance data
       let topInfluencers = [];
       try {
-        const userSales = await this.saleModel.model.aggregate([
-          {
-            $lookup: {
-              from: 'users',
-              localField: 'user_id',
-              foreignField: '_id',
-              as: 'user'
-            }
-          },
-          {
-            $unwind: {
-              path: '$user',
-              preserveNullAndEmptyArrays: true
-            }
-          },
-          {
-            $addFields: {
-              calculatedCommission: {
-                $cond: [
-                  { $and: [
-                    { $ne: ['$commission.amount', null] },
-                    { $ne: ['$commission.amount', undefined] },
-                    { $gt: ['$commission.amount', 0] }
-                  ]},
-                  '$commission.amount',
-                  {
-                    $let: {
-                      vars: {
-                        userTier: { $ifNull: ['$user.loyalty_tier', 'lead'] },
-                        tierMultiplier: {
-                          $switch: {
-                            branches: [
-                              { case: { $eq: ['$user.loyalty_tier', 'silver'] }, then: silverMultiplier },
-                              { case: { $eq: ['$user.loyalty_tier', 'gold'] }, then: goldMultiplier },
-                              { case: { $eq: ['$user.loyalty_tier', 'platinum'] }, then: platinumMultiplier }
-                            ],
-                            default: leadMultiplier
-                          }
-                        },
-                        baseCommission: { $multiply: ['$total_amount', { $divide: [baseRate, 100] }] }
-                      },
-                      in: {
-                        $min: [
-                          { $multiply: ['$$baseCommission', '$$tierMultiplier'] },
-                          commissionCap
-                        ]
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          {
-            $match: {
-              'user.role': 'influencer'
-            }
-          },
-          {
-            $group: {
-              _id: '$user_id',
-              total_sales: { $sum: '$total_amount' },
-              total_commission: { $sum: '$calculatedCommission' },
-              sales_count: { $sum: 1 },
-              user_name: { $first: { $concat: ['$user.first_name', ' ', '$user.last_name'] } },
-              user_tier: { $first: '$user.loyalty_tier' }
-            }
-          },
-          {
-            $sort: { total_commission: -1 }
-          },
-          {
-            $limit: 5
-          }
-        ]);
+        // First get all influencers
+        const User = require('../models/User');
+        const userModel = new User();
+        const influencers = await userModel.model.find({ role: 'influencer' }).select('_id first_name last_name loyalty_tier status created_at');
         
-        topInfluencers = userSales.map(us => ({
-          name: us.user_name || 'Unknown User',
-          network: 0, // Placeholder
-          commission: us.total_commission || 0,
-          tier: us.user_tier || 'unknown'
-        }));
+        // Get performance data for each influencer based on their network
+        const influencerPerformance = await Promise.all(
+          influencers.map(async (influencer) => {
+            // Get customers referred by this influencer (network size)
+            const referredCustomers = await userModel.model.find({ 
+              referred_by: influencer._id 
+            }).select('_id first_name last_name');
+            
+            const networkSize = referredCustomers.length;
+            
+            // Get sales data from customers in the influencer's network
+            const networkSalesData = await this.saleModel.model.aggregate([
+              { 
+                $match: { 
+                  user_id: { $in: referredCustomers.map(c => c._id) }
+                } 
+              },
+              {
+                $group: {
+                  _id: null,
+                  total_sales_amount: { $sum: '$total_amount' },
+                  total_liters: { $sum: '$total_liters' },
+                  total_commission: { $sum: '$commission.amount' },
+                  sales_count: { $sum: 1 }
+                }
+              }
+            ]);
+            
+            // Get sales with this influencer as referrer (additional network sales)
+            const referralSalesData = await this.saleModel.model.aggregate([
+              { $match: { 'referral.referrer': influencer._id } },
+              {
+                $group: {
+                  _id: null,
+                  referral_sales_amount: { $sum: '$total_amount' },
+                  referral_liters: { $sum: '$total_liters' },
+                  referral_commission: { $sum: '$commission.amount' },
+                  referral_count: { $sum: 1 }
+                }
+              }
+            ]);
+            
+            const networkSales = networkSalesData[0] || { 
+              total_sales_amount: 0, 
+              total_liters: 0, 
+              total_commission: 0, 
+              sales_count: 0 
+            };
+            
+            const referralSales = referralSalesData[0] || { 
+              referral_sales_amount: 0, 
+              referral_liters: 0, 
+              referral_commission: 0, 
+              referral_count: 0 
+            };
+            
+            // Calculate total network metrics
+            const totalSalesAmount = networkSales.total_sales_amount + referralSales.referral_sales_amount;
+            const totalLiters = networkSales.total_liters + referralSales.referral_liters;
+            const totalCommission = networkSales.total_commission + referralSales.referral_commission;
+            const totalSalesCount = networkSales.sales_count + referralSales.referral_count;
+            
+            return {
+              name: `${influencer.first_name} ${influencer.last_name}`,
+              network: networkSize,
+              sales: `${totalLiters.toLocaleString()}L`, // Show liters purchased by network
+              commission: `$${totalCommission.toLocaleString()}`, // Commission earned by network
+              tier: influencer.loyalty_tier || 'lead',
+              total_sales_amount: totalSalesAmount,
+              total_liters: totalLiters,
+              total_commission: totalCommission,
+              sales_count: totalSalesCount
+            };
+          })
+        );
+        
+        // Sort by total commission earned by network and take top 5
+        topInfluencers = influencerPerformance
+          .sort((a, b) => b.total_commission - a.total_commission)
+          .slice(0, 5);
         
       } catch (influencerError) {
-        console.error('Error getting top influencers from sales:', influencerError);
+        console.error('Error getting top influencers:', influencerError);
         topInfluencers = [];
       }
 
@@ -655,7 +658,7 @@ class DashboardController {
       // Get recent users (excluding staff)
       const customerRoles = ['user', 'customer', 'influencer'];
       const recentUsers = await this.userModel.model
-        .find({ role: { $in: customerRoles } }, { first_name: 1, last_name: 1, email: 1, phone: 1, loyalty_tier: 1, created_at: 1 })
+        .find({ role: { $in: customerRoles } }, { first_name: 1, last_name: 1, email: 1, phone: 1, role: 1, loyalty_tier: 1, created_at: 1 })
         .sort({ created_at: -1 })
         .limit(limit)
         .lean();
@@ -700,8 +703,15 @@ class DashboardController {
       });
 
       // Transform and combine activities
-      const userActivities = recentUsers.map(user => {
+      const userActivities = await Promise.all(recentUsers.map(async (user) => {
         const salesData = userSalesMap.get(user._id.toString()) || { total_liters: 0, total_cashback: 0, total_sales: 0 };
+        
+        // Get referral count for influencers
+        let referralCount = 0;
+        if (user.role === 'influencer') {
+          referralCount = await this.userModel.model.countDocuments({ referred_by_phone: user.phone });
+        }
+        
         return {
           type: 'user',
           id: user._id,
@@ -709,14 +719,16 @@ class DashboardController {
           last_name: user.last_name,
           email: user.email,
           phone: user.phone,
+          role: user.role,
           loyalty_tier: user.loyalty_tier || 'Lead',
           total_liters: salesData.total_liters,
           total_cashback: salesData.total_cashback,
           total_sales: salesData.total_sales,
+          referral_count: referralCount,
           timestamp: user.created_at,
           description: 'New user registered'
         };
-      });
+      }));
 
       const saleActivities = recentSales.map(sale => ({
         type: 'sale',

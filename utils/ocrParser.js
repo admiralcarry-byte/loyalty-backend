@@ -197,6 +197,9 @@ class OCRParser {
     // Extract payment method
     const paymentMethod = this.extractPaymentMethod(text);
     
+    // Extract cashback
+    const cashback = this.extractCashback(text);
+    
     // Calculate confidence based on how many fields were successfully extracted
     const extractedFields = [invoiceNumber, date, amountResult.amount, storeName, paymentMethod];
     const validFields = extractedFields.filter(field => field && field !== 'unknown' && field !== 'UNKNOWN' && field > 0);
@@ -209,6 +212,7 @@ class OCRParser {
       currency: amountResult.currency || 'UNKNOWN',
       date: date || new Date(),
       paymentMethod: paymentMethod || 'unknown',
+      cashback: cashback || 0,
       confidence: Math.max(confidence, 0.1) // Minimum 10% confidence
     };
   }
@@ -613,6 +617,44 @@ class OCRParser {
     
     // Consider it a receipt if at least 2 out of 4 indicators are present
     return indicatorCount >= 2;
+  }
+
+  /**
+   * Extract cashback amount from text
+   */
+  extractCashback(text) {
+    try {
+      // Look for cashback patterns in Brazilian Portuguese and English
+      const cashbackPatterns = [
+        /cashback[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /cashback[:\s]*(\d+[.,]\d{2})/i,
+        /cash.*back[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /reembolso[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /reembolso[:\s]*(\d+[.,]\d{2})/i,
+        /devolução[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /devolução[:\s]*(\d+[.,]\d{2})/i,
+        /cb[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /cb[:\s]*(\d+[.,]\d{2})/i
+      ];
+
+      for (const pattern of cashbackPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+          // Convert Brazilian decimal format (comma) to standard format (dot)
+          const cashbackValue = parseFloat(match[1].replace(',', '.'));
+          if (!isNaN(cashbackValue) && cashbackValue > 0) {
+            console.log('OCR Parser - Cashback extracted:', cashbackValue);
+            return cashbackValue;
+          }
+        }
+      }
+
+      console.log('OCR Parser - No cashback found in text');
+      return 0;
+    } catch (error) {
+      console.log('OCR Parser - Error extracting cashback:', error);
+      return 0;
+    }
   }
 }
 

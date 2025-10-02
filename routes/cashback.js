@@ -454,9 +454,14 @@ router.get('/stats/overview', [], async (req, res) => {
 // @access  Public (for testing)
 router.get('/config', [], async (req, res) => {
   try {
-    // Default cashback settings - in production, these would come from a settings table
+    // Get current commission settings from database
+    const CommissionSettings = require('../models/CommissionSettings');
+    const commissionSettingsModel = new CommissionSettings();
+    const settings = await commissionSettingsModel.model.getCurrentSettings();
+    
+    // Return cashback settings from database
     const cashbackSettings = {
-      base_cashback_rate: 2.0, // 2% base rate per liter
+      base_cashback_rate: settings.cashback_rate || 2.0, // Retrieve from database
       tier_benefits: {
         Lead: {
           multiplier: 1.0,

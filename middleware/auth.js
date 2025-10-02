@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
+const Seller = require('../schemas/Seller');
 
 // Create User instance
 const userModel = new User();
@@ -31,27 +32,66 @@ const verifyToken = async (req, res, next) => {
     const jwtSecret = process.env.JWT_SECRET || 'aguatwezah_super_secret_jwt_key_2024';
     const decoded = jwt.verify(token, jwtSecret);
     
-    // Get user from database
-    const user = await userModel.findById(decoded.userId);
+    // Check if this is a seller token or user token
+    if (decoded.sellerId) {
+      // This is a seller token
+      const seller = await Seller.findById(decoded.sellerId);
 
-    if (!user) {
+      if (!seller) {
+        return res.status(401).json({
+          success: false,
+          error: 'Seller not found',
+          message: 'Seller associated with token does not exist'
+        });
+      }
+
+      // Check if seller is active
+      if (seller.status !== 'active') {
+        return res.status(401).json({
+          success: false,
+          error: 'Account is not active',
+          message: `Account status: ${seller.status}`
+        });
+      }
+
+      // Create a user-like object for sellers
+      req.user = {
+        _id: seller._id,
+        email: seller.email,
+        role: 'seller',
+        status: seller.status,
+        store_number: seller.store_number
+      };
+    } else if (decoded.userId) {
+      // This is a regular user token
+      const user = await userModel.findById(decoded.userId);
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: 'User not found',
+          message: 'User associated with token does not exist'
+        });
+      }
+
+      // Check if user is active
+      if (user.status !== 'active') {
+        return res.status(401).json({
+          success: false,
+          error: 'Account is not active',
+          message: `Account status: ${user.status}`
+        });
+      }
+
+      req.user = user;
+    } else {
       return res.status(401).json({
         success: false,
-        error: 'User not found',
-        message: 'User associated with token does not exist'
+        error: 'Invalid token',
+        message: 'Token does not contain valid user or seller ID'
       });
     }
 
-    // Check if user is active
-    if (user.status !== 'active') {
-      return res.status(401).json({
-        success: false,
-        error: 'Account is not active',
-        message: `Account status: ${user.status}`
-      });
-    }
-
-    req.user = user;
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
@@ -90,9 +130,11 @@ const requireRole = (...roles) => {
     }
 
     if (!roles.includes(req.user.role)) {
+      console.log(`Access denied: User role "${req.user.role}" not in allowed roles [${roles.join(', ')}]`);
       return res.status(403).json({
         success: false,
-        error: 'Insufficient permissions'
+        error: 'Insufficient permissions',
+        message: `Your role (${req.user.role}) does not have access to this resource. Required: ${roles.join(', ')}`
       });
     }
 
@@ -103,8 +145,8 @@ const requireRole = (...roles) => {
 // Check if user is admin
 const requireAdmin = requireRole('admin');
 
-// Check if user is manager or admin
-const requireManager = requireRole('admin', 'manager');
+// Check if user is manager, admin, or seller
+const requireManager = requireRole('admin', 'manager', 'seller');
 
 // Check if user is staff or higher
 const requireStaff = requireRole('admin', 'manager', 'staff');

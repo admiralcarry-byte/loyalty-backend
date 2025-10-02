@@ -10,6 +10,7 @@ const database = require('./config/database');
 const fontHelper = require('./utils/fontHelper');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
+const sellerRoutes = require('./routes/sellers');
 const adminRoutes = require('./routes/admin');
 const storeRoutes = require('./routes/stores');
 const campaignRoutes = require('./routes/campaigns');
@@ -39,6 +40,7 @@ const payoutRequestRoutes = require('./routes/payoutRequests');
 const activityLogsRoutes = require('./routes/activityLogs');
 const systemStatsRoutes = require('./routes/systemStats');
 const generalSettingsRoutes = require('./routes/generalSettings');
+const tierRequirementsRoutes = require('./routes/tierRequirements');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -107,21 +109,55 @@ startServer();
 
 // CORS configuration
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:8080',
-    'http://localhost:8081',
-    'https://loyalty-frontend.netlify.app',
-    'https://loyalty-admin.netlify.app',
-    'https://loyalty-backend-production-8e32.up.railway.app'
-  ],   
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:5173',
+      'http://localhost:8080',
+      'http://localhost:8081',
+      'https://loyalty-frontend.netlify.app',
+      'https://loyalty-admin.netlify.app',
+      'https://loyalty-backend-production-8e32.up.railway.app'
+    ];
+    
+    // Add environment-specific origins
+    if (process.env.CORS_ORIGIN) {
+      if (process.env.CORS_ORIGIN === '*') {
+        return callback(null, true);
+      }
+      allowedOrigins.push(...process.env.CORS_ORIGIN.split(','));
+    }
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Cache-Control',
+    'Pragma'
+  ],
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  preflightContinue: false
 };
 
 app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 // Security middleware - after CORS
 // app.use(helmet({
@@ -183,6 +219,9 @@ console.log('🔄 Setting up API routes...');
 // Main API routes
 app.use(`${apiPrefix}/auth`, authRoutes);
 app.use(`${apiPrefix}/users`, userRoutes);
+console.log('Registering sellers routes...');
+app.use(`${apiPrefix}/sellers`, sellerRoutes);
+console.log('Sellers routes registered');
 app.use(`${apiPrefix}/admin`, adminRoutes);
 app.use(`${apiPrefix}/stores`, storeRoutes);
 app.use(`${apiPrefix}/campaigns`, campaignRoutes);
@@ -212,6 +251,7 @@ app.use(`${apiPrefix}/payout-requests`, payoutRequestRoutes);
 app.use(`${apiPrefix}/activity-logs`, activityLogsRoutes);
 app.use(`${apiPrefix}/system-stats`, systemStatsRoutes);
 app.use(`${apiPrefix}/general-settings`, generalSettingsRoutes);
+app.use(`${apiPrefix}/tier-requirements`, tierRequirementsRoutes);
 console.log('✅ All versioned routes loaded');
 
 // 404 handler

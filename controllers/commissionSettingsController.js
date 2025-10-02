@@ -36,6 +36,7 @@ class CommissionSettingsController {
 
       const {
         base_commission_rate,
+        cashback_rate,
         tier_multipliers,
         minimum_active_users,
         payout_threshold,
@@ -61,6 +62,7 @@ class CommissionSettingsController {
 
       const settingsData = {
         base_commission_rate: parseFloat(base_commission_rate),
+        cashback_rate: parseFloat(cashback_rate),
         tier_multipliers: {
           lead: parseFloat(tier_multipliers.lead),
           silver: parseFloat(tier_multipliers.silver),

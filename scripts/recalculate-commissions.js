@@ -54,9 +54,10 @@ class CommissionRecalculator {
       // Calculate effective commission rate for display
       const effectiveRate = (finalCommission / totalAmount) * 100;
       
-      // Calculate cashback (2% per liter as per original logic)
-      const cashbackPerLiter = 2.0;
-      const cashbackAmount = liters * cashbackPerLiter;
+      // Calculate cashback using per-liter calculation as intended by UI
+      const cashbackRate = commissionSettings.cashback_rate || 2.0;
+      const baseCashback = liters * cashbackRate; // Amount per liter (not percentage)
+      const cashbackAmount = baseCashback * tierMultiplier; // Apply tier multiplier to cashback
       
       return {
         commissionAmount: Math.round(finalCommission * 100) / 100,

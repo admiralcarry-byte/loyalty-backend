@@ -4,6 +4,7 @@ const StoreSeeder = require('./StoreSeeder');
 const SaleSeeder = require('./SaleSeeder');
 const LoyaltyLevelSeeder = require('./LoyaltyLevelSeeder');
 const InfluencerLevelSeeder = require('./InfluencerLevelSeeder');
+const TierRequirementSeeder = require('./TierRequirementSeeder');
 
 /**
  * Seeder Runner - Manages and executes all seeders
@@ -19,6 +20,7 @@ class SeederRunner extends BaseSeeder {
         // Core system levels
         LoyaltyLevelSeeder,    // 4 levels (Lead, Silver, Gold, Platinum)
         InfluencerLevelSeeder, // 3 levels (Silver, Gold, Platinum)
+        TierRequirementSeeder, // 4 tier requirements (Lead: 0L, Silver: 50L, Gold: 80L, Platinum: 100L)
         
         // Main entities
         UserSeeder,            // 10 users (admin, managers, customers, influencers)
@@ -58,12 +60,13 @@ class SeederRunner extends BaseSeeder {
       if (this.activeMode) {
         console.log('   - Loyalty Levels (4 customer tiers: Lead, Silver, Gold, Platinum)');
         console.log('   - Influencer Levels (3 influencer tiers: Silver, Gold, Platinum)');
+        console.log('   - Tier Requirements (4 tier progression rules for automatic tier upgrades)');
         console.log('   - Users (10 users: admin, managers, customers, influencers)');
         console.log('   - Stores (10 retail locations across Angola)');
         console.log('   - Sales (10 sales transactions)');
-        console.log('\n💡 Active pages seeding mode - 5 collections for currently active pages');
+        console.log('\n💡 Active pages seeding mode - 6 collections for currently active pages');
         console.log('   Only tables needed for: Dashboard, User Management, Store Management,');
-        console.log('   Sales Management, Loyalty Levels, and Influencer Levels.');
+        console.log('   Sales Management, Loyalty Levels, and Tier Requirements.');
         console.log('   Each collection contains exactly 10 sample records (except levels).');
       }
     } catch (error) {
@@ -84,6 +87,7 @@ class SeederRunner extends BaseSeeder {
           'sales',
           'stores',
           'users',
+          'tierrequirements',
           'influencerlevels',
           'loyaltylevels'
         ];
@@ -114,6 +118,7 @@ class SeederRunner extends BaseSeeder {
         const collections = [
           { name: 'loyaltylevels', description: 'Customer loyalty tiers' },
           { name: 'influencerlevels', description: 'Influencer tiers' },
+          { name: 'tierrequirements', description: 'Tier progression requirements' },
           { name: 'users', description: 'User accounts' },
           { name: 'stores', description: 'Store locations' },
           { name: 'sales', description: 'Sales transactions' }

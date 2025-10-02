@@ -219,6 +219,7 @@ class FastOCR {
     const liters = this.extractLiters(text);
     const phoneNumber = this.extractPhoneNumber(text);
     const email = this.extractEmail(text);
+    const cashback = this.extractCashback(text);
     
     // Calculate confidence based on extracted fields with better validation
     const extractedFields = [invoiceNumber, date, amountResult.amount, storeName, paymentMethod, customerName, liters, phoneNumber, email];
@@ -289,6 +290,7 @@ class FastOCR {
       liters: liters || 0,
       phoneNumber: phoneNumber || null,
       email: email || null,
+      cashback: cashback || 0,
       confidence: Math.max(confidence, 0.1) // Minimum 10% confidence
     };
   }
@@ -1018,6 +1020,44 @@ class FastOCR {
     } catch (error) {
       console.log('Error parsing date:', error);
       return new Date();
+    }
+  }
+
+  /**
+   * Extract cashback amount from text
+   */
+  extractCashback(text) {
+    try {
+      // Look for cashback patterns in Brazilian Portuguese and English
+      const cashbackPatterns = [
+        /cashback[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /cashback[:\s]*(\d+[.,]\d{2})/i,
+        /cash.*back[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /reembolso[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /reembolso[:\s]*(\d+[.,]\d{2})/i,
+        /devolução[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /devolução[:\s]*(\d+[.,]\d{2})/i,
+        /cb[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /cb[:\s]*(\d+[.,]\d{2})/i
+      ];
+
+      for (const pattern of cashbackPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+          // Convert Brazilian decimal format (comma) to standard format (dot)
+          const cashbackValue = parseFloat(match[1].replace(',', '.'));
+          if (!isNaN(cashbackValue) && cashbackValue > 0) {
+            console.log('Cashback extracted:', cashbackValue);
+            return cashbackValue;
+          }
+        }
+      }
+
+      console.log('No cashback found in text');
+      return 0;
+    } catch (error) {
+      console.log('Error extracting cashback:', error);
+      return 0;
     }
   }
 

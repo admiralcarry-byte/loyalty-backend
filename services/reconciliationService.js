@@ -584,7 +584,9 @@ class ReconciliationService {
         
         // Calculate commission based on settings (using lead tier as default for reconciliation)
         const baseCommissionRate = commissionSettings.base_commission_rate || 5.0;
-        const commission = (invoice.amount * baseCommissionRate) / 100;
+        const baseCommission = (invoice.amount * baseCommissionRate) / 100;
+        const leadMultiplier = commissionSettings.tier_multipliers?.lead || 1.0;
+        const commission = baseCommission * leadMultiplier;
 
         await invoice.awardPointsAndCashback(points, cashback, commission);
 

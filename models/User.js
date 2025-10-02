@@ -111,23 +111,103 @@ class User extends BaseModel {
     return await this.updateById(userId, { liter_balance: newBalance });
   }
 
-  // Update loyalty tier based on total liters
+  // Update total liters and loyalty tier based on purchase
+  async updateTotalLitersAndTier(userId, liters, purchaseAmount = 0) {
+    const user = await this.findById(userId);
+    if (!user) throw new Error('User not found');
+    
+    // Update total liters and total purchases
+    const newTotalLiters = parseFloat(user.total_liters || 0) + parseFloat(liters);
+    const newTotalPurchases = parseFloat(user.total_purchases || 0) + parseFloat(purchaseAmount);
+    const updatedUser = await this.updateById(userId, { 
+      total_liters: newTotalLiters,
+      total_purchases: newTotalPurchases
+    });
+    
+    // Update loyalty tier based on new total liters
+    return await this.updateLoyaltyTier(userId);
+  }
+
+  // Update loyalty tier based on total liters using TierRequirement system
   async updateLoyaltyTier(userId) {
     const user = await this.findById(userId);
     if (!user) throw new Error('User not found');
     
-    const totalLiters = parseFloat(user.total_liters);
-    let newTier = 'lead';
+    const totalLiters = parseFloat(user.total_liters || 0);
     
-    if (totalLiters >= 1000) newTier = 'platinum';
-    else if (totalLiters >= 500) newTier = 'gold';
-    else if (totalLiters >= 100) newTier = 'silver';
-    
-    if (newTier !== user.loyalty_tier) {
-      return await this.updateById(userId, { loyalty_tier: newTier });
+    try {
+      // Use TierRequirement system from database
+      const TierRequirement = require('./TierRequirement');
+      const tierRequirementModel = new TierRequirement();
+      
+      // Get tier requirements from database
+      const activeRequirements = await tierRequirementModel.getActiveRequirements();
+      
+      if (!activeRequirements || activeRequirements.length === 0) {
+        console.warn('⚠️ No tier requirements found in database. Please run seeder: npm run seed');
+        console.warn('⚠️ Falling back to default tier requirements');
+        throw new Error('No tier requirements in database');
+      }
+      
+      const newTier = await tierRequirementModel.getTierForLiters(totalLiters);
+      
+      if (newTier !== user.loyalty_tier) {
+        const updatedUser = await this.updateById(userId, { loyalty_tier: newTier });
+        console.log(`✅ User ${userId} tier upgraded: ${user.loyalty_tier} → ${newTier} (${totalLiters}L total)`);
+        return updatedUser;
+      }
+      
+      console.log(`ℹ️ User ${userId} tier unchanged: ${user.loyalty_tier} (${totalLiters}L total)`);
+      return user;
+    } catch (error) {
+      console.error('⚠️ Error using TierRequirement database, using fallback values:', error.message);
+      console.error('💡 Solution: Run "npm run seed" to populate tier requirements table');
+      
+      // Fallback to default thresholds if database is not seeded
+      // These match the default values in TierRequirementSeeder
+      let newTier = 'lead';
+      if (totalLiters >= 100) newTier = 'platinum';
+      else if (totalLiters >= 80) newTier = 'gold';
+      else if (totalLiters >= 50) newTier = 'silver';
+      
+      if (newTier !== user.loyalty_tier) {
+        const updatedUser = await this.updateById(userId, { loyalty_tier: newTier });
+        console.log(`⚠️ User ${userId} tier updated (fallback): ${user.loyalty_tier} → ${newTier} (${totalLiters}L)`);
+        return updatedUser;
+      }
+      
+      return user;
     }
-    
-    return user;
+  }
+
+  // Update all users' tiers based on current tier requirements
+  async updateAllUserTiers() {
+    try {
+      console.log('🔄 Updating all user tiers based on current requirements...');
+      
+      const users = await this.model.find({});
+      let updatedCount = 0;
+      
+      for (const user of users) {
+        try {
+          const oldTier = user.loyalty_tier;
+          const updatedUser = await this.updateLoyaltyTier(user._id);
+          
+          if (updatedUser.loyalty_tier !== oldTier) {
+            updatedCount++;
+            console.log(`Updated user ${user._id} from ${oldTier} to ${updatedUser.loyalty_tier}`);
+          }
+        } catch (error) {
+          console.error(`Error updating tier for user ${user._id}:`, error);
+        }
+      }
+      
+      console.log(`✅ Updated ${updatedCount} users' tiers`);
+      return { updatedCount, totalUsers: users.length };
+    } catch (error) {
+      console.error('Error updating all user tiers:', error);
+      throw error;
+    }
   }
 
   // Get users with referrals

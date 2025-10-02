@@ -1,31 +1,106 @@
 const { User } = require('../models');
-const userModel = new User();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 
 class AuthController {
+  constructor() {
+    this.userModel = new User();
+  }
   // User registration
   async register(userData) {
     // Validation should be handled in the route middleware
     // This method assumes data is already validated
 
     // Check if email already exists
-    const existingUser = await userModel.findByEmail(userData.email);
+    const existingUser = await this.userModel.findByEmail(userData.email);
     if (existingUser) {
       throw new Error('Email already exists');
     }
 
     // Check if phone already exists
     if (userData.phone) {
-      const existingPhone = await userModel.findOne({ phone: userData.phone });
+      const existingPhone = await this.userModel.findOne({ phone: userData.phone });
       if (existingPhone) {
         throw new Error('Phone number already exists');
       }
     }
 
     // Create user
-    const user = await userModel.createUser(userData);
+    const user = await this.userModel.createUser(userData);
+
+    // Generate JWT token
+    const token = this.generateToken(user);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        role: user.role,
+        loyalty_tier: user.loyalty_tier,
+        status: user.status
+      },
+      accessToken: token,
+      refreshToken: token // For now, using the same token as refresh token
+    };
+  }
+
+  // Check if admin registration is enabled (no admin exists)
+  async isAdminRegistrationEnabled() {
+    try {
+      const existingAdmin = await this.userModel.findOne({ role: 'admin' });
+      return !existingAdmin; // Return true if no admin exists, false otherwise
+    } catch (error) {
+      console.error('Error checking admin registration status:', error);
+      return false;
+    }
+  }
+
+  // Admin registration
+  async registerAdmin(userData) {
+    // Check if admin registration is enabled (only one admin allowed)
+    const registrationEnabled = await this.isAdminRegistrationEnabled();
+    if (!registrationEnabled) {
+      throw new Error('Admin registration is disabled. An administrator already exists on this platform.');
+    }
+
+    // Check if email already exists
+    const existingUser = await this.userModel.findByEmail(userData.email);
+    if (existingUser) {
+      throw new Error('Email already exists');
+    }
+
+    // Check if phone already exists
+    if (userData.phone) {
+      const existingPhone = await this.userModel.findOne({ phone: userData.phone });
+      if (existingPhone) {
+        throw new Error('Phone number already exists');
+      }
+    }
+
+    // Generate username from email (take part before @)
+    let username = userData.email.split('@')[0];
+    
+    // Check if username already exists, if so append a number
+    let usernameExists = await this.userModel.findOne({ username });
+    let counter = 1;
+    while (usernameExists) {
+      username = `${userData.email.split('@')[0]}${counter}`;
+      usernameExists = await this.userModel.findOne({ username });
+      counter++;
+    }
+
+    // Create admin user with role set to 'admin'
+    const adminData = {
+      ...userData,
+      username,
+      role: 'admin',
+      status: 'active'
+    };
+
+    const user = await this.userModel.createUser(adminData);
 
     // Generate JWT token
     const token = this.generateToken(user);
@@ -46,9 +121,9 @@ class AuthController {
   }
 
   // User login
-  async login(email, password) {
+  async login(email, password, influencerPhone = null) {
     // Find user by email
-    const user = await userModel.findByEmail(email);
+    const user = await this.userModel.findByEmail(email);
     if (!user) {
       throw new Error('Invalid credentials');
     }
@@ -64,8 +139,26 @@ class AuthController {
       throw new Error('Invalid credentials');
     }
 
+    // Check influencer phone validation
+    if (user.referred_by_phone) {
+      // User was referred by an influencer, so influencer phone is required
+      if (!influencerPhone) {
+        throw new Error('Influencer phone number is required for this account. Please enter the phone number of the influencer who referred you.');
+      }
+      
+      // Validate that the provided influencer phone matches the stored one
+      if (user.referred_by_phone !== influencerPhone) {
+        throw new Error('The influencer phone number does not match our records. Please verify the number or contact support if you believe this is an error.');
+      }
+    } else {
+      // User was not referred by an influencer, so influencer phone should not be provided
+      if (influencerPhone) {
+        throw new Error('This account was not referred by an influencer. Please leave the influencer phone number field blank.');
+      }
+    }
+
     // Update last login
-    await userModel.updateById(user.id, { last_login: new Date() });
+    await this.userModel.updateById(user.id, { last_login: new Date() });
 
     // Generate JWT token
     const token = this.generateToken(user);
@@ -80,7 +173,8 @@ class AuthController {
         loyalty_tier: user.loyalty_tier,
         status: user.status,
         points_balance: user.points_balance,
-        total_liters: user.total_liters
+        total_liters: user.total_liters,
+        referred_by_phone: user.referred_by_phone
       },
       accessToken: token,
       refreshToken: token // For now, using the same token as refresh token
@@ -93,7 +187,7 @@ class AuthController {
       // For now, we're using the same token as refresh token, so verify with main secret
       const jwtSecret = process.env.JWT_SECRET || 'aguatwezah_super_secret_jwt_key_2024';
       const decoded = jwt.verify(refreshToken, jwtSecret);
-      const user = await userModel.findById(decoded.userId);
+      const user = await this.userModel.findById(decoded.userId);
       
       if (!user || user.status !== 'active') {
         throw new Error('Invalid refresh token');
@@ -110,7 +204,8 @@ class AuthController {
           loyalty_tier: user.loyalty_tier,
           status: user.status,
           points_balance: user.points_balance,
-          total_liters: user.total_liters
+          total_liters: user.total_liters,
+          referred_by_phone: user.referred_by_phone
         },
         accessToken: newToken 
       };
@@ -121,7 +216,7 @@ class AuthController {
 
   // Change password
   async changePassword(userId, currentPassword, newPassword) {
-    const user = await userModel.findById(userId);
+    const user = await this.userModel.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
@@ -136,14 +231,14 @@ class AuthController {
     const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
     // Update password
-    await userModel.updateById(userId, { password_hash: newPasswordHash });
+    await this.userModel.updateById(userId, { password_hash: newPasswordHash });
 
     return { message: 'Password changed successfully' };
   }
 
   // Forgot password
   async forgotPassword(email) {
-    const user = await userModel.findByEmail(email);
+    const user = await this.userModel.findByEmail(email);
     if (!user) {
       throw new Error('User not found');
     }
@@ -152,7 +247,7 @@ class AuthController {
     const resetToken = this.generateResetToken(user.id);
     
     // Store reset token in database (you might want to add a reset_token field to users table)
-    await userModel.updateById(user.id, { 
+    await this.userModel.updateById(user.id, { 
       reset_token: resetToken,
       reset_token_expires: new Date(Date.now() + 3600000) // 1 hour
     });
@@ -166,7 +261,7 @@ class AuthController {
   // Reset password
   async resetPassword(resetToken, newPassword) {
     // Find user by reset token
-    const user = await userModel.findOne({ reset_token: resetToken });
+    const user = await this.userModel.findOne({ reset_token: resetToken });
     if (!user) {
       throw new Error('Invalid reset token');
     }
@@ -180,7 +275,7 @@ class AuthController {
     const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
     // Update password and clear reset token
-    await userModel.updateById(user.id, { 
+    await this.userModel.updateById(user.id, { 
       password_hash: newPasswordHash,
       reset_token: null,
       reset_token_expires: null
@@ -192,13 +287,13 @@ class AuthController {
   // Verify email
   async verifyEmail(token) {
     // Find user by verification token
-    const user = await userModel.findOne({ email_verification_token: token });
+    const user = await this.userModel.findOne({ email_verification_token: token });
     if (!user) {
       throw new Error('Invalid verification token');
     }
 
     // Update user as verified
-    await userModel.updateById(user.id, { 
+    await this.userModel.updateById(user.id, { 
       email_verified: true,
       email_verification_token: null
     });
@@ -208,7 +303,7 @@ class AuthController {
 
   // Resend verification email
   async resendVerificationEmail(email) {
-    const user = await userModel.findByEmail(email);
+    const user = await this.userModel.findByEmail(email);
     if (!user) {
       throw new Error('User not found');
     }
@@ -220,7 +315,7 @@ class AuthController {
     // Generate new verification token
     const verificationToken = this.generateVerificationToken(user.id);
     
-    await userModel.updateById(user.id, { 
+    await this.userModel.updateById(user.id, { 
       email_verification_token: verificationToken
     });
 
@@ -290,7 +385,7 @@ class AuthController {
 
   // Get user profile
   async getProfile(userId) {
-    const user = await userModel.findById(userId);
+    const user = await this.userModel.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
@@ -308,6 +403,7 @@ class AuthController {
       total_liters: user.total_liters,
       referral_code: user.referral_code,
       referred_by: user.referred_by,
+      referred_by_phone: user.referred_by_phone,
       avatar_url: user.avatar_url,
       date_of_birth: user.date_of_birth,
       gender: user.gender,
@@ -342,7 +438,7 @@ class AuthController {
       }
     }
 
-    return await userModel.updateById(userId, filteredData);
+    return await this.userModel.updateById(userId, filteredData);
   }
 }
 

@@ -6,6 +6,9 @@ const UserSeeder = require('../seeders/UserSeeder');
 const StoreSeeder = require('../seeders/StoreSeeder');
 const LoyaltyLevelSeeder = require('../seeders/LoyaltyLevelSeeder');
 const InfluencerLevelSeeder = require('../seeders/InfluencerLevelSeeder');
+const TierRequirementSeeder = require('../seeders/TierRequirementSeeder');
+const CommissionSettingsSeeder = require('../seeders/CommissionSettingsSeeder');
+const GeneralSettingsSeeder = require('../seeders/GeneralSettingsSeeder');
 const SaleSeeder = require('../seeders/SaleSeeder');
 
 // Database configuration
@@ -30,9 +33,12 @@ async function runSeeders() {
 
     // Define seeder order (dependencies matter) - only essential collections for active pages
     const seeders = [
+      new GeneralSettingsSeeder(),
       new LoyaltyLevelSeeder(),
       new InfluencerLevelSeeder(),
+      new TierRequirementSeeder(),
       new UserSeeder(),
+      new CommissionSettingsSeeder(),
       new StoreSeeder(),
       new SaleSeeder()
     ];
@@ -46,9 +52,12 @@ async function runSeeders() {
 
     console.log('\n🎉 All seeders completed successfully!');
     console.log('\n📊 Database Summary:');
+    console.log('- 1 General Settings (Platform configuration)');
     console.log('- 4 Loyalty Levels (Lead, Silver, Gold, Platinum)');
     console.log('- 3 Influencer Levels (Silver, Gold, Platinum)');
+    console.log('- 4 Tier Requirements (Auto tier progression: Lead→Silver→Gold→Platinum)');
     console.log('- 10 Users (admin, managers, customers, influencers)');
+    console.log('- 1 Commission Settings (Commission rates and configuration)');
     console.log('- 10 Stores (retail locations)');
     console.log('- 10 Sales transactions');
     console.log('\n🔑 Admin login credentials:');

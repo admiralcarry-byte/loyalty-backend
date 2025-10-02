@@ -379,6 +379,7 @@ class AdvancedOCR {
     const items = this.extractItemsAdvanced(text);
     const taxInfo = this.extractTaxInfoAdvanced(text);
     const customerName = this.extractCustomerNameAdvanced(text);
+    const cashback = this.extractCashbackAdvanced(text);
     
     // Calculate advanced confidence scoring
     const confidence = this.calculateAdvancedConfidence({
@@ -395,6 +396,7 @@ class AdvancedOCR {
       items: items || [],
       taxInfo: taxInfo || {},
       customerName: customerName || 'UNKNOWN',
+      cashback: cashback || 0,
       confidence: Math.max(confidence, 0.1),
       extractionMethod: 'advanced'
     };
@@ -982,6 +984,49 @@ class AdvancedOCR {
     
     // Consider it a receipt if at least 3 out of 6 indicators are present (more strict)
     return indicatorCount >= 3;
+  }
+
+  /**
+   * Extract cashback amount from text using advanced patterns
+   */
+  extractCashbackAdvanced(text) {
+    try {
+      // Look for cashback patterns in Brazilian Portuguese and English
+      const cashbackPatterns = [
+        /cashback[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /cashback[:\s]*(\d+[.,]\d{2})/i,
+        /cash.*back[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /reembolso[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /reembolso[:\s]*(\d+[.,]\d{2})/i,
+        /devolução[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /devolução[:\s]*(\d+[.,]\d{2})/i,
+        /cb[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /cb[:\s]*(\d+[.,]\d{2})/i,
+        /cash.*back[:\s]*(\d+[.,]\d{2})/i,
+        /recompensa[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /recompensa[:\s]*(\d+[.,]\d{2})/i,
+        /bonus[:\s]*R?\$?\s*(\d+[.,]\d{2})/i,
+        /bonus[:\s]*(\d+[.,]\d{2})/i
+      ];
+
+      for (const pattern of cashbackPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+          // Convert Brazilian decimal format (comma) to standard format (dot)
+          const cashbackValue = parseFloat(match[1].replace(',', '.'));
+          if (!isNaN(cashbackValue) && cashbackValue > 0) {
+            console.log('Advanced OCR - Cashback extracted:', cashbackValue);
+            return cashbackValue;
+          }
+        }
+      }
+
+      console.log('Advanced OCR - No cashback found in text');
+      return 0;
+    } catch (error) {
+      console.log('Advanced OCR - Error extracting cashback:', error);
+      return 0;
+    }
   }
 }
 

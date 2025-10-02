@@ -110,7 +110,9 @@ class QRCodeGenerator {
         liters: invoiceData.litersPurchased,
         date: invoiceData.dateGenerated,
         dateFormatted: invoiceData.dateGeneratedFormatted || new Date(invoiceData.dateGenerated).toLocaleDateString('en-GB') + ' - ' + new Date(invoiceData.dateGenerated).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        purchaser: invoiceData.purchaserName
+        purchaser: invoiceData.purchaserName,
+        cashback: invoiceData.cashbackEarned || 0,
+        hasValidInfluencer: invoiceData.hasValidInfluencer || false
       };
 
       // Convert to JSON string for QR code
@@ -363,6 +365,14 @@ class QRCodeGenerator {
         { label: 'Payment:', value: invoiceData.paymentMethod || 'Cash' },
         { label: 'QR Code Hash:', value: invoiceData.storeNumberHash || 'N/A' }
       ];
+
+      // Add cashback information if available
+      if (invoiceData.hasValidInfluencer && invoiceData.cashbackEarned > 0) {
+        invoiceDetails.push({ 
+          label: 'Cashback:', 
+          value: `R$ ${invoiceData.cashbackEarned.toFixed(2)}` 
+        });
+      }
 
       invoiceDetails.forEach(detail => {
         // Field label on the left with fixed width

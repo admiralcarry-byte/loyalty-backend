@@ -4,7 +4,6 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const { 
   Sale, 
   User, 
@@ -472,7 +471,7 @@ router.post('/create-invoice', [
   body('email').optional().isEmail(),
   body('litersPurchased').isFloat({ min: 0.01 }).withMessage('Liters purchased must be greater than 0'),
   body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
-  body('storeNumber').optional().isString()
+  body('storeNumber').optional().isString(),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -490,7 +489,7 @@ router.post('/create-invoice', [
       email, 
       litersPurchased, 
       amount, 
-      storeNumber 
+      storeNumber
     } = req.body;
 
     // Validate store number if provided
@@ -509,6 +508,11 @@ router.post('/create-invoice', [
 
     // Generate QR code data (store number hash)
     const storeNumberHash = Buffer.from(storeNumber || 'default-store').toString('base64');
+    
+    // Get current commission settings and calculate cashback
+    const CommissionSettings = require('../models/CommissionSettings');
+    const commissionSettingsModel = new CommissionSettings();
+    const commissionSettings = await commissionSettingsModel.model.getCurrentSettings();
     
     // Create invoice data with full datetime
     const now = new Date();
@@ -551,37 +555,78 @@ router.post('/create-invoice', [
     if (!userId) {
       const userModel = new User();
       
-      // Generate a unique username and password for the customer
+      // Generate a unique username for the customer
       const username = `customer_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-      const password = Math.random().toString(36).substr(2, 8); // Random password
-      const password_hash = await bcrypt.hash(password, 10);
       
-      const newUser = await userModel.create({
+      // Set password to the email address (or a default if no email)
+      // This makes it easy for customers to log in with their email as both username and password
+      const customerEmail = email || `customer_${Date.now()}@example.com`;
+      const password = customerEmail; // Use email as password
+      
+      const newUser = await userModel.createUser({
         username: username,
         first_name: purchaserName.split(' ')[0] || purchaserName,
         last_name: purchaserName.split(' ').slice(1).join(' ') || '',
-        email: email || `customer_${Date.now()}@example.com`,
+        email: customerEmail,
         phone: phoneNumber || '',
-        password_hash: password_hash,
+        password: password, // Pass plain password - createUser will handle hashing
         role: 'customer',
-        status: 'active',
-        created_at: new Date()
+        status: 'active'
       });
       userId = newUser.id;
+      
+      // Log the auto-created customer for admin reference
+      console.log(`✅ Auto-created customer: ${purchaserName} (${customerEmail})`);
+      console.log(`   Login credentials - Email: ${customerEmail}, Password: ${customerEmail}`);
     }
 
-    // Calculate cashback (2% base rate per liter)
-    const baseCashbackRate = 2.0; // 2% per liter
-    const cashbackEarned = (litersPurchased * baseCashbackRate);
+    // Check if customer has an influencer phone number in their record and calculate cashback
+    let cashbackEarned = 0;
+    let hasValidInfluencer = false;
+    let customerInfluencerPhone = null;
 
-    // Get current commission settings
-    const CommissionSettings = require('../models/CommissionSettings');
-    const commissionSettingsModel = new CommissionSettings();
-    const commissionSettings = await commissionSettingsModel.model.getCurrentSettings();
-    
+    if (userId) {
+      // Get the customer's record to check for referred_by_phone
+      const userModel = new User();
+      const customer = await userModel.findById(userId);
+      
+      if (customer && customer.referred_by_phone) {
+        customerInfluencerPhone = customer.referred_by_phone;
+        
+        // Check if the influencer phone exists in the database as an active influencer
+        const influencer = await userModel.model.findOne({ 
+          phone: customerInfluencerPhone, 
+          role: 'influencer', 
+          status: 'active' 
+        });
+        
+        if (influencer) {
+          hasValidInfluencer = true;
+          // Calculate cashback using per-liter calculation as intended by UI
+          const cashbackRate = commissionSettings.cashback_rate || 2.0;
+          cashbackEarned = litersPurchased * cashbackRate; // Amount per liter (not percentage)
+        }
+      }
+    }
+
+    // Update invoice data with cashback information
+    invoiceData.cashbackEarned = cashbackEarned;
+    invoiceData.hasValidInfluencer = hasValidInfluencer;
+    invoiceData.customerInfluencerPhone = customerInfluencerPhone;
+
     // Calculate commission based on settings (using lead tier as default for billing)
     const baseCommissionRate = commissionSettings.base_commission_rate || 5.0;
     const commissionAmount = (amount * baseCommissionRate) / 100;
+
+    // Update user's total liters and total purchases
+    try {
+      const User = require('../models/User');
+      const userModel = new User();
+      await userModel.updateTotalLitersAndTier(userId, litersPurchased, amount);
+    } catch (error) {
+      console.error('Error updating user liters and purchases:', error);
+      // Continue with sale creation even if user update fails
+    }
 
     // Create sale record
     const saleModel = new Sale();

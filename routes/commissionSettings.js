@@ -12,6 +12,10 @@ const validateCommissionSettings = [
     .isFloat({ min: 0, max: 100 })
     .withMessage('Base commission rate must be between 0 and 100'),
   
+  body('cashback_rate')
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Cashback rate must be between 0 and 100'),
+  
   body('tier_multipliers.lead')
     .isFloat({ min: 0 })
     .withMessage('Lead tier multiplier must be a positive number'),

@@ -28,6 +28,51 @@ router.get('/', [
   }
 });
 
+// @route   GET /api/sales/my-purchases
+// @desc    Get current user's purchase history
+// @access  Private (Customer/User)
+router.get('/my-purchases', [verifyToken], async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { limit = 50 } = req.query;
+
+    // Import Sale model
+    const { Sale } = require('../models');
+    const saleModel = new Sale();
+
+    // Get user's sales/purchases
+    const sales = await saleModel.model.find({ user_id: userId })
+      .sort({ created_at: -1 })
+      .limit(parseInt(limit))
+      .populate('store_id', 'name address')
+      .populate('product_id', 'name');
+
+    // Calculate summary
+    const totalAmount = sales.reduce((sum, sale) => sum + (sale.total_amount || 0), 0);
+    const totalLiters = sales.reduce((sum, sale) => sum + (sale.quantity || sale.liters_purchased || 0), 0);
+    const totalCashback = sales.reduce((sum, sale) => sum + (sale.cashback_earned || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        purchases: sales,
+        summary: {
+          totalPurchases: sales.length,
+          totalAmount,
+          totalLiters,
+          totalCashback
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get my purchases error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get purchase history'
+    });
+  }
+});
+
 // @route   GET /api/sales/:id
 // @desc    Get sale by ID
 // @access  Private (Manager+)

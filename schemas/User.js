@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'manager', 'staff', 'user', 'customer', 'influencer'],
+    enum: ['admin', 'manager', 'staff', 'user', 'customer', 'influencer', 'seller'],
     default: 'user'
   },
   status: {
@@ -57,6 +57,10 @@ const userSchema = new mongoose.Schema({
   referred_by: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  referred_by_phone: {
+    type: String,
+    sparse: true
   },
   loyalty_tier: {
     type: String,

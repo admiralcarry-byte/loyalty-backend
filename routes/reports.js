@@ -105,10 +105,17 @@ router.get('/overview', [
     const topInfluencers = (dashboardData.commissionStats?.topInfluencers || []).map(influencer => ({
       name: influencer.name,
       network: influencer.network,
-      sales: `$${(influencer.commission || 0).toLocaleString()}`,
-      commission: `$${(influencer.commission || 0).toLocaleString()}`,
+      sales: `$${(influencer.total_sales_amount || 0).toLocaleString()}`,
+      commission: `$${(influencer.total_commission || 0).toLocaleString()}`,
       tier: influencer.tier
     }));
+    
+    // Add cache-busting headers to prevent stale data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     
     res.json({
       success: true,
@@ -177,10 +184,17 @@ router.get('/influencers', [
     const topInfluencers = (dashboardData.commissionStats?.topInfluencers || []).map(influencer => ({
       name: influencer.name,
       network: influencer.network,
-      sales: `$${(influencer.commission || 0).toLocaleString()}`,
-      commission: `$${(influencer.commission || 0).toLocaleString()}`,
+      sales: `$${(influencer.total_sales_amount || 0).toLocaleString()}`,
+      commission: `$${(influencer.total_commission || 0).toLocaleString()}`,
       tier: influencer.tier
     }));
+    
+    // Add cache-busting headers to prevent stale data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     
     res.json({
       success: true,

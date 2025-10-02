@@ -358,6 +358,9 @@ class SaleController {
       storeId = saleData.store_id;
     } else if (saleData.customer && saleData.location) {
       // Frontend format - find user by name or create a test user
+      console.log(`\n🔍 CUSTOMER LOOKUP DEBUG:`);
+      console.log(`   Looking for customer: ${saleData.customer}`);
+      
       const user = await this.userModel.model.findOne({ 
         $or: [
           { first_name: { $regex: saleData.customer, $options: 'i' } },
@@ -367,9 +370,13 @@ class SaleController {
       
       if (user) {
         userId = user._id;
+        console.log(`   Found user: ${user.first_name} ${user.last_name} (ID: ${userId})`);
+        console.log(`   User phone: ${user.phone}`);
+        console.log(`   User tier: ${user.loyalty_tier}`);
       } else {
         // For production: Don't create test users automatically
         // Instead, require valid user ID or throw an error
+        console.log(`   ❌ User not found for customer: ${saleData.customer}`);
         throw new Error(`User not found for customer: ${saleData.customer}. Please ensure the customer exists in the system or provide a valid user_id.`);
       }
       
@@ -395,10 +402,16 @@ class SaleController {
     }
 
     // Get user details for tier information
+    console.log(`\n🔍 USER LOOKUP DEBUG:`);
+    console.log(`   Looking up user with ID: ${userId}`);
     const user = await this.userModel.model.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
+    console.log(`   Found user: ${user.first_name} ${user.last_name}`);
+    console.log(`   User phone: ${user.phone}`);
+    console.log(`   User current tier: ${user.loyalty_tier}`);
+    console.log(`   User total liters: ${user.total_liters}`);
 
     // Get or create test product
     const productId = await this.getOrCreateTestProduct();
@@ -421,13 +434,69 @@ class SaleController {
       commissionSettings = await commissionSettingsModel.model.getCurrentSettings();
     }
     
-    // Calculate commission and cashback based on current settings for new sales
+    // Update user's total liters and loyalty tier first
+    let updatedUser = user;
+    try {
+      console.log(`\n🔄 USER TIER UPDATE DEBUG:`);
+      console.log(`   Before update - Tier: ${user.loyalty_tier}, Liters: ${user.total_liters}`);
+      console.log(`   Adding ${liters}L and $${totalAmount} to user totals`);
+      
+      const User = require('../models/User');
+      const userModel = new User();
+      updatedUser = await userModel.updateTotalLitersAndTier(userId, liters, totalAmount);
+      
+      console.log(`✅ User ${userId} tier updated to: ${updatedUser.loyalty_tier}`);
+      console.log(`🔍 Updated user object:`, JSON.stringify({
+        id: updatedUser._id,
+        name: updatedUser.first_name,
+        tier: updatedUser.loyalty_tier,
+        liters: updatedUser.total_liters,
+        phone: updatedUser.phone
+      }, null, 2));
+    } catch (error) {
+      console.error('Error updating user liters and tier:', error);
+      // Continue with original user data if tier update fails
+      console.log(`⚠️ Using original user tier: ${user.loyalty_tier}`);
+    }
+    
+    // Calculate commission and cashback based on updated user tier
+    console.log(`\n🔢 COMMISSION CALCULATION DEBUG:`);
+    console.log(`   Customer: ${updatedUser.first_name} ${updatedUser.last_name} (ID: ${userId})`);
+    console.log(`   Phone: ${updatedUser.phone}`);
+    console.log(`   Current Tier: ${updatedUser.loyalty_tier}`);
+    console.log(`   Purchase Amount: $${totalAmount}`);
+    console.log(`   Liters: ${liters}L`);
+    console.log(`   Commission Settings:`, {
+      base_rate: commissionSettings.base_commission_rate,
+      cashback_rate: commissionSettings.cashback_rate,
+      tier_multipliers: commissionSettings.tier_multipliers
+    });
+    
     const { commissionAmount, commissionRate, cashbackAmount } = await this.calculateCommissionAndCashback(
       totalAmount, 
       liters, 
-      user.loyalty_tier, 
+      updatedUser.loyalty_tier, 
       commissionSettings
     );
+    
+    console.log(`💰 FINAL CALCULATIONS:`);
+    console.log(`   Commission: $${commissionAmount} (${commissionRate}%)`);
+    console.log(`   Cashback: $${cashbackAmount}`);
+    console.log(`   Expected for ${updatedUser.loyalty_tier} tier: Commission should be ${updatedUser.loyalty_tier === 'platinum' ? '3x' : updatedUser.loyalty_tier === 'gold' ? '1.5x' : updatedUser.loyalty_tier === 'silver' ? '1.2x' : '1x'} multiplier`);
+    console.log(`   ==========================================\n`);
+    
+    // Display comprehensive purchase summary
+    console.log(`\n🛒 PURCHASE SUMMARY:`);
+    console.log(`   ========================================`);
+    console.log(`   Customer Name: ${updatedUser.first_name} ${updatedUser.last_name}`);
+    console.log(`   Email: ${updatedUser.email || 'Not provided'}`);
+    console.log(`   Phone: ${updatedUser.phone}`);
+    console.log(`   Loyalty Tier: ${updatedUser.loyalty_tier.toUpperCase()}`);
+    console.log(`   Liters Purchased: ${liters}L`);
+    console.log(`   Total Payment: $${totalAmount}`);
+    console.log(`   Commission Received: $${commissionAmount}`);
+    console.log(`   Cashback Earned: $${cashbackAmount}`);
+    console.log(`   ========================================\n`);
     
 
     // Create sale data structure with required individual fields
@@ -465,7 +534,7 @@ class SaleController {
         amount: commissionAmount,
         rate: commissionRate,
         calculated: true,
-        tier: user.loyalty_tier,
+        tier: updatedUser.loyalty_tier,
         settings_used: commissionSettings._id || 'current'
       },
       referral: {
@@ -501,6 +570,7 @@ class SaleController {
       // Return default settings if there's an error
       return {
         base_commission_rate: 5.0,
+        cashback_rate: 2.0,
         tier_multipliers: {
           lead: 1.0,
           silver: 1.2,
@@ -552,32 +622,51 @@ class SaleController {
   // Calculate commission and cashback based on settings and user tier
   async calculateCommissionAndCashback(totalAmount, liters, userTier, commissionSettings) {
     try {
+      console.log(`\n🧮 CALCULATION METHOD DEBUG:`);
+      console.log(`   Input: Amount=$${totalAmount}, Liters=${liters}L, Tier=${userTier}`);
+      
       // Calculate commission based on tier multiplier
       const tierKey = userTier.toLowerCase();
       const tierMultiplier = commissionSettings.tier_multipliers[tierKey] || 1.0;
       const baseCommissionRate = commissionSettings.base_commission_rate || 5.0;
       const commissionCap = commissionSettings.commission_cap || 1000.0;
       
+      console.log(`   Commission Calculation:`);
+      console.log(`     Tier Key: ${tierKey}`);
+      console.log(`     Tier Multiplier: ${tierMultiplier}x`);
+      console.log(`     Base Commission Rate: ${baseCommissionRate}%`);
+      console.log(`     Commission Cap: $${commissionCap}`);
+      
       // Calculate base commission
       const baseCommission = (totalAmount * baseCommissionRate) / 100;
+      console.log(`     Base Commission: $${totalAmount} × ${baseCommissionRate}% = $${baseCommission}`);
       
       // Apply tier multiplier
       const tierCommission = baseCommission * tierMultiplier;
+      console.log(`     Tier Commission: $${baseCommission} × ${tierMultiplier} = $${tierCommission}`);
       
       // Apply commission cap
       const finalCommission = Math.min(tierCommission, commissionCap);
+      console.log(`     Final Commission: min($${tierCommission}, $${commissionCap}) = $${finalCommission}`);
       
       // Calculate effective commission rate for display
       const effectiveRate = (finalCommission / totalAmount) * 100;
+      console.log(`     Effective Rate: ($${finalCommission} / $${totalAmount}) × 100 = ${effectiveRate}%`);
       
-      // Calculate cashback (2% per liter as per original logic, but this could be made configurable)
-      const cashbackPerLiter = 2.0;
-      const cashbackAmount = liters * cashbackPerLiter;
+      // Calculate cashback using per-liter calculation as intended by UI
+      const cashbackRate = commissionSettings.cashback_rate || 2.0;
+      const baseCashback = liters * cashbackRate; // Amount per liter (not percentage)
+      const tierCashback = baseCashback * tierMultiplier; // Apply tier multiplier to cashback
+      
+      console.log(`   Cashback Calculation:`);
+      console.log(`     Cashback Rate: $${cashbackRate} per liter`);
+      console.log(`     Base Cashback: ${liters}L × $${cashbackRate} = $${baseCashback}`);
+      console.log(`     Tier Cashback: $${baseCashback} × ${tierMultiplier} = $${tierCashback}`);
       
       return {
         commissionAmount: Math.round(finalCommission * 100) / 100, // Round to 2 decimal places
         commissionRate: Math.round(effectiveRate * 100) / 100,
-        cashbackAmount: Math.round(cashbackAmount * 100) / 100
+        cashbackAmount: Math.round(tierCashback * 100) / 100 // Use tier-multiplied cashback
       };
     } catch (error) {
       console.error('Error calculating commission and cashback:', error);

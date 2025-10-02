@@ -226,6 +226,16 @@ router.post('/', [
 
     const newEntry = await PurchaseEntry.create(entryData);
 
+    // Update user's total liters and loyalty tier
+    try {
+      const User = require('../models/User');
+      const userModel = new User();
+      await userModel.updateTotalLitersAndTier(user_id, liters_purchased);
+    } catch (error) {
+      console.error('Error updating user liters and tier:', error);
+      // Don't fail the purchase creation if tier update fails
+    }
+
     res.status(201).json({
       success: true,
       message: 'Purchase entry created successfully',

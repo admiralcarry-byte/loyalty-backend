@@ -14,17 +14,27 @@ const SaleSeeder = require('../seeders/SaleSeeder');
 // Database configuration
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/aguatwezah_admin';
 
+// Ensure we're using the correct database name for production
+const getDatabaseUri = () => {
+  if (process.env.MONGODB_URI) {
+    return process.env.MONGODB_URI;
+  }
+  // For local development, use aguatwezah_admin
+  return 'mongodb://localhost:27017/aguatwezah_admin';
+};
+
 async function runSeeders() {
   try {
+    const databaseUri = getDatabaseUri();
     console.log('🚀 Starting database seeding...');
-    console.log(`📡 Connecting to MongoDB: ${MONGODB_URI}`);
+    console.log(`📡 Connecting to MongoDB: ${databaseUri}`);
 
     // Configure mongoose to prevent auto-creation
     mongoose.set('autoCreate', false);
     mongoose.set('autoIndex', false);
     
     // Connect to MongoDB
-    await mongoose.connect(MONGODB_URI, {
+    await mongoose.connect(databaseUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });

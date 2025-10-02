@@ -24,7 +24,10 @@
     "seed:clear": "node scripts/seed.js clear",
     "setup-complete": "node scripts/setup-complete.js",
     "create-env": "node scripts/create-env.js",
-    "local-dev": "npm run setup-db && npm run seed && npm run dev"
+    "local-dev": "npm run setup-db && npm run seed && npm run dev",
+    "fix-db": "node scripts/fix-database.js",
+    "migrate-test-to-prod": "node scripts/migrate-test-to-production.js",
+    "test-atlas": "node scripts/test-atlas-connection.js"
   },
   "keywords": [
     "express",

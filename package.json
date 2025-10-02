@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "start:minimal": "node start-minimal.js",
+    "start:production": "node start-production.js",
     "dev": "nodemon server.js",
     "setup-mongodb": "node scripts/setup-mongodb.js",
     "seed-mongodb": "node scripts/seed-mongodb.js",
@@ -25,6 +26,7 @@
     "setup-complete": "node scripts/setup-complete.js",
     "create-env": "node scripts/create-env.js",
     "test-cors": "node scripts/test-cors.js",
+    "test-railway": "node scripts/test-railway-health.js",
     "local-dev": "npm run setup-db && npm run seed && npm run dev"
   },
   "keywords": [

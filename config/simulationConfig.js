@@ -119,19 +119,19 @@ const SIMULATION_CONFIG = {
           name: 'PIX',
           status: 'planned',
           apiUrl: 'https://api.pix.com',
-          supportedCurrencies: ['BRL', 'USD']
+          supportedCurrencies: ['AOA']
         },
         mobileMoney: {
           name: 'Mobile Money',
           status: 'planned',
           apiUrl: 'https://api.mobilemoney.com',
-          supportedCurrencies: ['AOA', 'USD']
+          supportedCurrencies: ['AOA']
         },
         bankTransfer: {
           name: 'Bank Transfer',
           status: 'planned',
           apiUrl: 'https://api.banktransfer.com',
-          supportedCurrencies: ['AOA', 'USD', 'EUR']
+          supportedCurrencies: ['AOA']
         }
       }
     },

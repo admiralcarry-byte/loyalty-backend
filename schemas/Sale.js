@@ -48,8 +48,8 @@ const saleSchema = new mongoose.Schema({
   },
   currency: {
     type: String,
-    default: 'BRL',
-    enum: ['USD', 'AOA', 'EUR', 'BRL']
+    default: 'AOA',
+    enum: ['AOA', 'USD', 'EUR', 'BRL']
   },
   order_status: {
     type: String,

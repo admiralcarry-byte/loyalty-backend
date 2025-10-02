@@ -63,7 +63,7 @@ const productSchema = new mongoose.Schema({
   },
   currency: {
     type: String,
-    default: 'GHS',
+    default: 'AOA',
     maxlength: 3
   },
   inventory: {

@@ -209,7 +209,7 @@ class OCRParser {
       invoiceNumber: invoiceNumber || 'UNKNOWN',
       storeName: storeName || 'Unknown Store',
       amount: amountResult.amount || 0,
-      currency: amountResult.currency || 'UNKNOWN',
+      currency: amountResult.currency || 'AOA',
       date: date || new Date(),
       paymentMethod: paymentMethod || 'unknown',
       cashback: cashback || 0,
@@ -280,7 +280,13 @@ class OCRParser {
   extractAmount(text) {
     // Universal currency patterns
     const currencyPatterns = [
-      // Brazilian Real
+      // Angolan Kwanza (Kz)
+      { pattern: /(?:TOTAL|TOTAL FINAL|VALOR TOTAL|Total)[\s:]*Kz\s*(\d+[,.]?\d*)/i, currency: 'AOA' },
+      { pattern: /Kz\s*(\d+[,.]?\d*)\s*(?:TOTAL|FINAL)/i, currency: 'AOA' },
+      { pattern: /Kz\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'AOA' },
+      { pattern: /AOA\s*(\d+[,.]?\d*)/i, currency: 'AOA' },
+      
+      // Brazilian Real (for compatibility)
       { pattern: /(?:TOTAL|TOTAL FINAL|VALOR TOTAL|Total)[\s:]*R\$\s*(\d+[,.]?\d*)/i, currency: 'BRL' },
       { pattern: /R\$\s*(\d+[,.]?\d*)\s*(?:TOTAL|FINAL)/i, currency: 'BRL' },
       { pattern: /R\$\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'BRL' },
@@ -305,9 +311,9 @@ class OCRParser {
       { pattern: /¥\s*(\d+[,.]?\d*)\s*(?:TOTAL|Total)/i, currency: 'JPY' },
       { pattern: /JPY\s*(\d+[,.]?\d*)/i, currency: 'JPY' },
       
-      // Generic patterns
-      { pattern: /(?:Total|Amount)[\s:]*(\d+[,.]?\d*)/i, currency: 'UNKNOWN' },
-      { pattern: /(\d+[,.]?\d*)\s*(?:TOTAL|Total)/i, currency: 'UNKNOWN' }
+      // Generic patterns (fallback to AOA)
+      { pattern: /(?:Total|Amount)[\s:]*(\d+[,.]?\d*)/i, currency: 'AOA' },
+      { pattern: /(\d+[,.]?\d*)\s*(?:TOTAL|Total)/i, currency: 'AOA' }
     ];
     
     for (const { pattern, currency } of currencyPatterns) {
@@ -321,7 +327,7 @@ class OCRParser {
       }
     }
     
-    return { amount: 0, currency: 'UNKNOWN' };
+    return { amount: 0, currency: 'AOA' };
   }
 
   /**

@@ -16,8 +16,8 @@ const generalSettingsSchema = new mongoose.Schema({
   currency: {
     type: String,
     required: true,
-    default: 'USD',
-    enum: ['USD', 'EUR', 'GBP', 'AOA', 'BRL', 'ZAR']
+    default: 'AOA',
+    enum: ['AOA', 'USD', 'EUR', 'GBP', 'BRL', 'ZAR']
   },
   app_description: {
     type: String,
@@ -59,7 +59,7 @@ generalSettingsSchema.statics.getCurrentSettings = async function() {
       settings = new this({
         app_name: 'ÁGUA TWEZAH',
         support_email: 'support@aguatwezah.com',
-        currency: 'USD',
+        currency: 'AOA',
         app_description: 'Premium Water Loyalty Program',
         timezone: 'Africa/Luanda',
         language: 'Portuguese',

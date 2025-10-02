@@ -76,7 +76,7 @@ class CommissionFixer {
         amount: commissionAmount,
         rate: commissionRate,
         base_amount: sale.total_amount,
-        currency: 'USD',
+        currency: 'AOA',
         notes: `Retroactive commission for sale ${sale.sale_number}`,
         calculated_at: new Date(),
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now

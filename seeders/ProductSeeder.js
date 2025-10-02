@@ -28,7 +28,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 1.80
         },
         cost: 1.20,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 1000,
@@ -78,7 +78,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 2.80
         },
         cost: 1.80,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 800,
@@ -128,7 +128,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 10.00
         },
         cost: 6.50,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 300,
@@ -178,7 +178,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 3.80
         },
         cost: 2.30,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 600,
@@ -228,7 +228,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 2.40
         },
         cost: 1.60,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 400,
@@ -279,7 +279,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 17.50
         },
         cost: 12.00,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 9999,
@@ -328,7 +328,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 0.35
         },
         cost: 0.00,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 9999,
@@ -377,7 +377,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 2.10
         },
         cost: 1.40,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 500,
@@ -427,7 +427,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 1.05
         },
         cost: 0.70,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 800,
@@ -477,7 +477,7 @@ class ProductSeeder extends BaseSeeder {
           bulk: 4.20
         },
         cost: 2.80,
-        currency: 'USD',
+        currency: 'AOA',
         status: 'active',
         inventory: {
           quantity: 200,

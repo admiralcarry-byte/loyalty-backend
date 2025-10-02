@@ -283,7 +283,7 @@ router.post('/invoices/:id/refund', [
       const notificationModel = new Notification();
       await notificationModel.create({
         title: 'Refund Processed',
-        message: `R$ ${refund_amount.toFixed(2)} has been refunded to your wallet for sale #${sale.id}`,
+        message: `${refund_amount.toFixed(2)} Kz has been refunded to your wallet for sale #${sale.id}`,
         type: 'success',
         category: 'billing',
         priority: 'normal',
@@ -298,7 +298,7 @@ router.post('/invoices/:id/refund', [
 
     res.json({
       success: true,
-      message: `Refund of R$ ${refund_amount.toFixed(2)} processed successfully`,
+      message: `Refund of ${refund_amount.toFixed(2)} Kz processed successfully`,
       data: {
         invoice_id: id,
         refund_amount,
@@ -514,6 +514,16 @@ router.post('/create-invoice', [
     const commissionSettingsModel = new CommissionSettings();
     const commissionSettings = await commissionSettingsModel.model.getCurrentSettings();
     
+    // Debug logging for billing cashback calculation
+    console.log('🔍 BILLING CASHBACK DEBUG:');
+    console.log('   Commission Settings:', {
+      base_rate: commissionSettings.base_commission_rate,
+      cashback_rate: commissionSettings.cashback_rate,
+      tier_multipliers: commissionSettings.tier_multipliers
+    });
+    console.log('   Liters Purchased:', litersPurchased);
+    console.log('   Expected Cashback:', litersPurchased * commissionSettings.cashback_rate);
+    
     // Create invoice data with full datetime
     const now = new Date();
     const invoiceData = {
@@ -580,31 +590,50 @@ router.post('/create-invoice', [
       console.log(`   Login credentials - Email: ${customerEmail}, Password: ${customerEmail}`);
     }
 
-    // Check if customer has an influencer phone number in their record and calculate cashback
+    // Get customer's current tier for proper commission and cashback calculation
+    let customerTier = 'lead'; // Default tier
     let cashbackEarned = 0;
     let hasValidInfluencer = false;
     let customerInfluencerPhone = null;
 
     if (userId) {
-      // Get the customer's record to check for referred_by_phone
+      // Get the customer's record to check for referred_by_phone and current tier
       const userModel = new User();
       const customer = await userModel.findById(userId);
       
-      if (customer && customer.referred_by_phone) {
-        customerInfluencerPhone = customer.referred_by_phone;
+      if (customer) {
+        // Get customer's current loyalty tier
+        customerTier = customer.loyalty_tier || 'lead';
+        console.log(`\n🔍 BILLING COMMISSION DEBUG:`);
+        console.log(`   Customer: ${customer.first_name} ${customer.last_name}`);
+        console.log(`   Current Tier: ${customerTier}`);
+        console.log(`   Purchase Amount: $${amount}`);
+        console.log(`   Liters: ${litersPurchased}L`);
         
-        // Check if the influencer phone exists in the database as an active influencer
-        const influencer = await userModel.model.findOne({ 
-          phone: customerInfluencerPhone, 
-          role: 'influencer', 
-          status: 'active' 
-        });
-        
-        if (influencer) {
-          hasValidInfluencer = true;
-          // Calculate cashback using per-liter calculation as intended by UI
-          const cashbackRate = commissionSettings.cashback_rate || 2.0;
-          cashbackEarned = litersPurchased * cashbackRate; // Amount per liter (not percentage)
+        if (customer.referred_by_phone) {
+          customerInfluencerPhone = customer.referred_by_phone;
+          
+          // Check if the influencer phone exists in the database as an active influencer
+          const influencer = await userModel.model.findOne({ 
+            phone: customerInfluencerPhone, 
+            role: 'influencer', 
+            status: 'active' 
+          });
+          
+          if (influencer) {
+            hasValidInfluencer = true;
+            // Calculate cashback using tier multiplier
+            const tierKey = customerTier.toLowerCase();
+            const tierMultiplier = commissionSettings.tier_multipliers[tierKey] || 1.0;
+            const cashbackRate = commissionSettings.cashback_rate;
+            const baseCashback = litersPurchased * cashbackRate; // Amount per liter (not percentage)
+            cashbackEarned = baseCashback * tierMultiplier; // Apply tier multiplier to cashback
+            
+            console.log(`   Cashback Calculation:`);
+            console.log(`     Tier Multiplier: ${tierMultiplier}x`);
+            console.log(`     Base Cashback: ${litersPurchased}L × $${cashbackRate} = $${baseCashback}`);
+            console.log(`     Tier Cashback: $${baseCashback} × ${tierMultiplier} = $${cashbackEarned}`);
+          }
         }
       }
     }
@@ -614,9 +643,17 @@ router.post('/create-invoice', [
     invoiceData.hasValidInfluencer = hasValidInfluencer;
     invoiceData.customerInfluencerPhone = customerInfluencerPhone;
 
-    // Calculate commission based on settings (using lead tier as default for billing)
-    const baseCommissionRate = commissionSettings.base_commission_rate || 5.0;
-    const commissionAmount = (amount * baseCommissionRate) / 100;
+    // Calculate commission based on customer's tier
+    const tierKey = customerTier.toLowerCase();
+    const tierMultiplier = commissionSettings.tier_multipliers[tierKey] || 1.0;
+    const baseCommissionRate = commissionSettings.base_commission_rate;
+    const baseCommission = (amount * baseCommissionRate) / 100;
+    const commissionAmount = baseCommission * tierMultiplier; // Apply tier multiplier
+    
+    console.log(`   Commission Calculation:`);
+    console.log(`     Tier Multiplier: ${tierMultiplier}x`);
+    console.log(`     Base Commission: $${amount} × ${baseCommissionRate}% = $${baseCommission}`);
+    console.log(`     Tier Commission: $${baseCommission} × ${tierMultiplier} = $${commissionAmount}`);
 
     // Update user's total liters and total purchases
     try {
@@ -635,16 +672,17 @@ router.post('/create-invoice', [
       quantity: litersPurchased,
       subtotal: amount,  // Set subtotal to match total_amount for simple invoices
       total_amount: amount,
-      currency: 'BRL',
+      currency: 'AOA',
       order_status: 'completed',
       status: 'completed',
       payment_method: 'cash',
       payment_status: 'paid',  // Set payment status to 'paid' for cash transactions
       cashback_earned: cashbackEarned,  // Calculate cashback based on liters purchased
       commission: {
-        amount: commissionAmount,  // Calculate commission based on total amount
+        amount: commissionAmount,  // Calculate commission based on total amount and tier
         rate: baseCommissionRate,  // Commission rate percentage
-        calculated: true  // Mark as calculated
+        calculated: true,  // Mark as calculated
+        tier: customerTier  // Store the tier used for calculation
       },
       // Invoice-specific fields
       purchaser_name: purchaserName,
@@ -1501,7 +1539,7 @@ router.post('/scan-uploads/:id/reconcile', [
       await scanUpload.markAsFinal(purchaseEntryId, onlinePurchaseId, 0.9);
 
       // Award points and cashback (simplified logic)
-      const points = Math.floor(scanUpload.amount * 0.1); // 1 point per R$ 10
+      const points = Math.floor(scanUpload.amount * 0.1); // 1 point per Kz 10
       const cashback = scanUpload.amount * 0.02; // 2% cashback
 
       await scanUpload.awardPointsAndCashback(points, cashback);
@@ -1530,7 +1568,7 @@ router.post('/scan-uploads/:id/reconcile', [
       const notificationModel = new Notification();
       await notificationModel.create({
         title: 'Receipt Approved',
-        message: `Your receipt for R$ ${scanUpload.amount.toFixed(2)} has been approved. You earned ${points} points and R$ ${cashback.toFixed(2)} cashback.`,
+        message: `Your receipt for ${scanUpload.amount.toFixed(2)} Kz has been approved. You earned ${points} points and ${cashback.toFixed(2)} Kz cashback.`,
         type: 'success',
         category: 'billing',
         priority: 'normal',

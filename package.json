@@ -24,10 +24,8 @@
     "seed:clear": "node scripts/seed.js clear",
     "setup-complete": "node scripts/setup-complete.js",
     "create-env": "node scripts/create-env.js",
-    "local-dev": "npm run setup-db && npm run seed && npm run dev",
-    "fix-db": "node scripts/fix-database.js",
-    "migrate-test-to-prod": "node scripts/migrate-test-to-production.js",
-    "test-atlas": "node scripts/test-atlas-connection.js"
+    "test-cors": "node scripts/test-cors.js",
+    "local-dev": "npm run setup-db && npm run seed && npm run dev"
   },
   "keywords": [
     "express",
@@ -57,6 +55,7 @@
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "jsqr": "^1.4.0",
+    "lodash": "^4.17.21",
     "moment": "^2.29.4",
     "mongoose": "^8.0.3",
     "morgan": "^1.10.0",

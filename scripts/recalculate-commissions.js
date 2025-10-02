@@ -39,7 +39,7 @@ class CommissionRecalculator {
       // Calculate commission based on tier multiplier
       const tierKey = userTier.toLowerCase();
       const tierMultiplier = commissionSettings.tier_multipliers[tierKey] || 1.0;
-      const baseCommissionRate = commissionSettings.base_commission_rate || 5.0;
+      const baseCommissionRate = commissionSettings.base_commission_rate;
       const commissionCap = commissionSettings.commission_cap || 1000.0;
       
       // Calculate base commission
@@ -55,7 +55,7 @@ class CommissionRecalculator {
       const effectiveRate = (finalCommission / totalAmount) * 100;
       
       // Calculate cashback using per-liter calculation as intended by UI
-      const cashbackRate = commissionSettings.cashback_rate || 2.0;
+      const cashbackRate = commissionSettings.cashback_rate;
       const baseCashback = liters * cashbackRate; // Amount per liter (not percentage)
       const cashbackAmount = baseCashback * tierMultiplier; // Apply tier multiplier to cashback
       

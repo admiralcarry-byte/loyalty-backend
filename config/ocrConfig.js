@@ -165,10 +165,19 @@ module.exports = {
       
       // Amount patterns
       amount: [
+        // Angolan Kwanza (Kz) - primary currency
+        { pattern: /(?:TOTAL|TOTAL FINAL|VALOR TOTAL|Total|Valor)[\s:]*Kz\s*(\d+[,.]?\d*)/i, currency: 'AOA' },
+        { pattern: /Kz\s*(\d+[,.]?\d*)\s*(?:TOTAL|FINAL|Total)/i, currency: 'AOA' },
+        { pattern: /Kz\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'AOA' },
+        { pattern: /(?:Kwanza|AOA)[\s:]*(\d+[,.]?\d*)/i, currency: 'AOA' },
+        
+        // Brazilian Real (for compatibility)
         { pattern: /(?:TOTAL|TOTAL FINAL|VALOR TOTAL|Total|Valor)[\s:]*R\$\s*(\d+[,.]?\d*)/i, currency: 'BRL' },
         { pattern: /R\$\s*(\d+[,.]?\d*)\s*(?:TOTAL|FINAL|Total)/i, currency: 'BRL' },
         { pattern: /R\$\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'BRL' },
         { pattern: /(?:Real|BRL)[\s:]*(\d+[,.]?\d*)/i, currency: 'BRL' },
+        
+        // US Dollar
         { pattern: /(?:TOTAL|Total|Amount|Sum)[\s:]*\$\s*(\d+[,.]?\d*)/i, currency: 'USD' },
         { pattern: /\$\s*(\d+[,.]?\d*)\s*(?:TOTAL|Total|Amount)/i, currency: 'USD' },
         { pattern: /USD\s*(\d+[,.]?\d*)/i, currency: 'USD' },

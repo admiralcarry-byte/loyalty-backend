@@ -477,7 +477,13 @@ class AdvancedOCR {
    */
   extractAmountAdvanced(text) {
     const currencyPatterns = [
-      // Brazilian Real with various formats
+      // Angolan Kwanza (Kz) - primary currency
+      { pattern: /(?:TOTAL|TOTAL FINAL|VALOR TOTAL|Total|Valor)[\s:]*Kz\s*(\d+[,.]?\d*)/i, currency: 'AOA' },
+      { pattern: /Kz\s*(\d+[,.]?\d*)\s*(?:TOTAL|FINAL|Total)/i, currency: 'AOA' },
+      { pattern: /Kz\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'AOA' },
+      { pattern: /(?:Kwanza|AOA)[\s:]*(\d+[,.]?\d*)/i, currency: 'AOA' },
+      
+      // Brazilian Real (for compatibility)
       { pattern: /(?:TOTAL|TOTAL FINAL|VALOR TOTAL|Total|Valor)[\s:]*R\$\s*(\d+[,.]?\d*)/i, currency: 'BRL' },
       { pattern: /R\$\s*(\d+[,.]?\d*)\s*(?:TOTAL|FINAL|Total)/i, currency: 'BRL' },
       { pattern: /R\$\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'BRL' },
@@ -800,7 +806,7 @@ class AdvancedOCR {
         if (name.length > 1 && 
             !name.match(/^(Customer|Cliente|Comprador|Buyer|Name|Nome|Purchaser)$/i) &&
             !name.match(/^\d+$/) && // Not just numbers
-            !name.match(/^(R\$|USD|BRL|Total|Amount|Valor)$/i) && // Not currency
+            !name.match(/^(Kz|AOA|R\$|USD|BRL|Total|Amount|Valor)$/i) && // Not currency
             !name.match(/^(Invoice|Nota|Receipt|Cupom)$/i)) { // Not receipt types
           return name;
         }

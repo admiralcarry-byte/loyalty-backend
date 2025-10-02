@@ -193,7 +193,7 @@ class SaleSeeder extends BaseSeeder {
           customer: selectedUser._id,
           quantity: invoice.liters_purchased,
           total_amount: invoice.total_amount,
-          currency: 'BRL',
+          currency: 'AOA',
           order_status: 'completed',
           status: 'completed',
           payment_method: invoice.payment_method,
@@ -243,7 +243,7 @@ class SaleSeeder extends BaseSeeder {
       // Log sample data
       console.log('\n📊 Sample Sale Data:');
       createdSales.slice(0, 3).forEach((sale, index) => {
-        console.log(`${index + 1}. ${sale.purchaser_name} - ${sale.liters_purchased}L - R$ ${sale.total_amount} - ${sale.store_number}`);
+        console.log(`${index + 1}. ${sale.purchaser_name} - ${sale.liters_purchased}L - ${sale.total_amount} Kz - ${sale.store_number}`);
       });
 
       return createdSales;

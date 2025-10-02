@@ -12,7 +12,7 @@ const {
 class ReconciliationService {
   constructor() {
     this.matchThreshold = 0.8; // 80% confidence threshold
-    this.amountTolerance = 0.01; // R$ 0.01 tolerance for amount matching
+    this.amountTolerance = 0.01; // Kz 0.01 tolerance for amount matching
   }
 
   /**
@@ -271,7 +271,7 @@ class ReconciliationService {
       );
 
       // Award points and cashback
-      const points = Math.floor(scanUpload.amount * 0.1); // 1 point per R$ 10
+      const points = Math.floor(scanUpload.amount * 0.1); // 1 point per Kz 10
       const cashback = scanUpload.amount * 0.02; // 2% cashback
 
       await scanUpload.awardPointsAndCashback(points, cashback);
@@ -300,7 +300,7 @@ class ReconciliationService {
       const notificationModel = new Notification();
       await notificationModel.create({
         title: 'Receipt Automatically Reconciled',
-        message: `Your receipt for R$ ${scanUpload.amount.toFixed(2)} has been automatically reconciled. You earned ${points} points and R$ ${cashback.toFixed(2)} cashback.`,
+        message: `Your receipt for ${scanUpload.amount.toFixed(2)} Kz has been automatically reconciled. You earned ${points} points and ${cashback.toFixed(2)} Kz cashback.`,
         type: 'success',
         category: 'billing',
         priority: 'normal',
@@ -583,7 +583,7 @@ class ReconciliationService {
         const commissionSettings = await commissionSettingsModel.model.getSettingsAtTime(invoice.createdAt);
         
         // Calculate commission based on settings (using lead tier as default for reconciliation)
-        const baseCommissionRate = commissionSettings.base_commission_rate || 5.0;
+        const baseCommissionRate = commissionSettings.base_commission_rate;
         const baseCommission = (invoice.amount * baseCommissionRate) / 100;
         const leadMultiplier = commissionSettings.tier_multipliers?.lead || 1.0;
         const commission = baseCommission * leadMultiplier;

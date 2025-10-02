@@ -42,7 +42,7 @@ class CommissionSeeder extends BaseSeeder {
         rate: commissionRate * 100, // Convert to percentage
         amount: commissionAmount,
         base_amount: randomSale.total_amount,
-        currency: 'USD',
+        currency: 'AOA',
         status: ['pending', 'approved', 'paid'][Math.floor(Math.random() * 3)],
         calculation_details: {
           sale_amount: randomSale.total_amount,

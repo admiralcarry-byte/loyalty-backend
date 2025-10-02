@@ -461,7 +461,7 @@ router.get('/config', [], async (req, res) => {
     
     // Return cashback settings from database
     const cashbackSettings = {
-      base_cashback_rate: settings.cashback_rate || 2.0, // Retrieve from database
+      base_cashback_rate: settings.cashback_rate, // Retrieve from database
       tier_benefits: {
         Lead: {
           multiplier: 1.0,

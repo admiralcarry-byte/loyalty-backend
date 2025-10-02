@@ -41,4 +41,23 @@ router.put('/', async (req, res) => {
   }
 });
 
+// Get settings statistics
+router.get('/statistics', async (req, res) => {
+  try {
+    const result = await generalSettingsService.getSettingsStatistics();
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('Error in settings statistics GET route:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
 module.exports = router;

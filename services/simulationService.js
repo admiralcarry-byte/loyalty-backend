@@ -404,7 +404,7 @@ class SimulationService {
           type: 'digital_wallet',
           status: 'active',
           commission_rate: 2.5,
-          supported_currencies: ['BRL', 'USD'],
+          supported_currencies: ['AOA'],
           transaction_count: 1247,
           total_volume: 45600.50
         },
@@ -414,7 +414,7 @@ class SimulationService {
           type: 'mobile_money',
           status: 'active',
           commission_rate: 3.0,
-          supported_currencies: ['AOA', 'USD'],
+          supported_currencies: ['AOA'],
           transaction_count: 892,
           total_volume: 23400.75
         }
@@ -426,7 +426,7 @@ class SimulationService {
           provider_id: 1,
           transaction_type: 'payment',
           amount: 150.00,
-          currency: 'BRL',
+          currency: 'AOA',
           status: 'completed',
           reference: 'PIX-2024-001',
           created_at: '2024-01-20T14:30:00Z'

@@ -283,7 +283,7 @@ class FastOCR {
       invoiceNumber: invoiceNumber || 'Not Found',
       storeName: storeName || 'Not Found',
       amount: amountResult.amount || 0,
-      currency: amountResult.currency || 'BRL',
+      currency: amountResult.currency || 'AOA',
       date: date || new Date(),
       paymentMethod: paymentMethod || 'Not Found',
       customerName: customerName || 'Not Found',
@@ -545,12 +545,17 @@ class FastOCR {
     console.log('Extracting amount from text:', text);
     
     const currencyPatterns = [
-      // Amount: R$ 123.00 pattern (most specific) - with reasonable range
+      // Angolan Kwanza (Kz) - most specific patterns
+      { pattern: /(?:Amount|Valor)[\s:]*Kz\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'AOA' },
+      { pattern: /(?:TOTAL|TOTAL FINAL|VALOR TOTAL|Total)[\s:]*Kz\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'AOA' },
+      { pattern: /Kz\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})\s*(?:TOTAL|FINAL)/i, currency: 'AOA' },
+      { pattern: /Kz\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'AOA' },
+      { pattern: /AOA\s*(\d+[,.]?\d*)/i, currency: 'AOA' },
+      
+      // Brazilian Real (for compatibility)
       { pattern: /(?:Amount|Valor)[\s:]*R\$\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'BRL' },
-      // Brazilian Real - more specific patterns
       { pattern: /(?:TOTAL|TOTAL FINAL|VALOR TOTAL|Total)[\s:]*R\$\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'BRL' },
       { pattern: /R\$\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})\s*(?:TOTAL|FINAL)/i, currency: 'BRL' },
-      // R$ 123.00 pattern (reasonable range)
       { pattern: /R\$\s*(\d{1,3}(?:[,.]?\d{3})*[,.]?\d{2})/, currency: 'BRL' },
       
       // US Dollar
@@ -561,8 +566,8 @@ class FastOCR {
       { pattern: /(?:TOTAL|Total|Amount)[\s:]*€\s*(\d+[,.]?\d*)/i, currency: 'EUR' },
       { pattern: /€\s*(\d+[,.]?\d*)\s*(?:TOTAL|Total)/i, currency: 'EUR' },
       
-      // Generic patterns
-      { pattern: /(?:Total|Amount)[\s:]*(\d+[,.]?\d*)/i, currency: 'UNKNOWN' }
+      // Generic patterns (fallback to AOA)
+      { pattern: /(?:Total|Amount)[\s:]*(\d+[,.]?\d*)/i, currency: 'AOA' }
     ];
     
     for (const { pattern, currency } of currencyPatterns) {
@@ -589,13 +594,13 @@ class FastOCR {
       const amount = parseFloat(amountStr);
       console.log(`Fallback amount found: "${fallbackMatch[1]}" -> ${amount}`);
       if (!isNaN(amount) && amount > 0 && amount < 10000) { // Reasonable range
-        console.log(`Fallback amount accepted: ${amount} BRL`);
-        return { amount, currency: 'BRL' };
+      console.log(`Fallback amount accepted: ${amount} AOA`);
+      return { amount, currency: 'AOA' };
       }
     }
     
     console.log('No amount pattern matched');
-    return { amount: 0, currency: 'BRL' };
+    return { amount: 0, currency: 'AOA' };
   }
 
   /**
@@ -692,7 +697,7 @@ class FastOCR {
         if (name.length > 1 && 
             !name.match(/^(Customer|Cliente|Comprador|Buyer|Name|Nome|Purchaser)$/i) &&
             !name.match(/^\d+$/) && // Not just numbers
-            !name.match(/^(R\$|USD|BRL|Total|Amount|Valor)$/i) && // Not currency
+            !name.match(/^(Kz|AOA|R\$|USD|BRL|Total|Amount|Valor)$/i) && // Not currency
             !name.match(/Phone|Email|Store|Amount|Liters/i)) { // Not field names
           return name;
         }

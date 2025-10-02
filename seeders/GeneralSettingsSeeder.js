@@ -17,7 +17,7 @@ class GeneralSettingsSeeder extends BaseSeeder {
     const generalSettings = {
       app_name: 'ÁGUA TWEZAH',
       support_email: 'support@aguatwezah.com',
-      currency: 'USD',
+      currency: 'AOA',
       app_description: 'Premium Water Loyalty Program',
       timezone: 'Africa/Luanda',
       language: 'Portuguese',
@@ -31,7 +31,7 @@ class GeneralSettingsSeeder extends BaseSeeder {
     console.log('✅ General settings seeded successfully');
     console.log('   - App name: ÁGUA TWEZAH');
     console.log('   - Support email: support@aguatwezah.com');
-    console.log('   - Currency: USD');
+    console.log('   - Currency: AOA');
     console.log('   - Timezone: Africa/Luanda');
     console.log('   - Language: Portuguese');
   }

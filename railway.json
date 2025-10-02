@@ -5,11 +5,11 @@
     "dockerfilePath": "Dockerfile.railway"
   },
   "deploy": {
-    "startCommand": "npm start",
+    "startCommand": "npm run start:minimal",
     "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 300,
+    "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3
+    "restartPolicyMaxRetries": 10
   },
   "environments": {
     "production": {
@@ -18,11 +18,8 @@
         "MONGODB_URI": "mongodb+srv://admiralcarry_db_user:hRbz6MRdicUoyLZk@loyalty-cloud.k62anvl.mongodb.net/aguatwezah_admin",
         "JWT_SECRET": "aguatwezah_production_secret_key_2024_secure",
         "JWT_REFRESH_SECRET": "aguatwezah_production_refresh_secret_key_2024_secure",
-        "CORS_ORIGIN": "https://loyalty-frontend.netlify.app,https://loyalty-admin.netlify.app",
-        "RAILWAY_ENVIRONMENT": "production",
-        "API_PREFIX": "/api",
-        "RATE_LIMIT_WINDOW_MS": "900000",
-        "RATE_LIMIT_MAX_REQUESTS": "1000"
+        "CORS_ORIGIN": "https://loyalty-frontend.netlify.app",
+        "RAILWAY_ENVIRONMENT": "production"
       }
     }
   }

@@ -89,7 +89,7 @@ module.exports = {
         const defaultSettings = new GeneralSettings({
           app_name: 'ÁGUA TWEZAH',
           support_email: 'support@aguatwezah.com',
-          currency: 'USD',
+          currency: 'AOA',
           app_description: 'Premium Water Loyalty Program',
           timezone: 'Africa/Luanda',
           language: 'Portuguese',

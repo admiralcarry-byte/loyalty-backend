@@ -361,7 +361,7 @@ class QRCodeGenerator {
         { label: 'Phone:', value: invoiceData.phoneNumber || 'N/A' },
         { label: 'Email:', value: invoiceData.email || 'N/A' },
         { label: 'Liters:', value: `${invoiceData.litersPurchased || 0}L` },
-        { label: 'Amount:', value: `R$ ${(invoiceData.amount || 0).toFixed(2)}` },
+        { label: 'Amount:', value: `${(invoiceData.amount || 0).toFixed(2)} Kz` },
         { label: 'Payment:', value: invoiceData.paymentMethod || 'Cash' },
         { label: 'QR Code Hash:', value: invoiceData.storeNumberHash || 'N/A' }
       ];
@@ -370,7 +370,7 @@ class QRCodeGenerator {
       if (invoiceData.hasValidInfluencer && invoiceData.cashbackEarned > 0) {
         invoiceDetails.push({ 
           label: 'Cashback:', 
-          value: `R$ ${invoiceData.cashbackEarned.toFixed(2)}` 
+          value: `${invoiceData.cashbackEarned.toFixed(2)} Kz` 
         });
       }
 

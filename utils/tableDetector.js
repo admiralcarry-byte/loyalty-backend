@@ -255,7 +255,7 @@ class TableDetector {
       quantity: line.fields.quantity || 1,
       description: line.fields.description || line.line,
       price: line.fields.price || 0,
-      currency: line.fields.currency || 'BRL',
+      currency: line.fields.currency || 'AOA',
       confidence: line.confidence
     }));
   }
@@ -269,7 +269,7 @@ class TableDetector {
       row: line.index,
       description: line.fields.description || line.line,
       amount: line.fields.price || 0,
-      currency: line.fields.currency || 'BRL',
+      currency: line.fields.currency || 'AOA',
       confidence: line.confidence
     }));
   }
@@ -337,7 +337,7 @@ class TableDetector {
       structureTypes: {},
       itemCount: 0,
       totalValue: 0,
-      currency: 'BRL'
+        currency: 'AOA'
     };
     
     // Count structures by type
@@ -450,7 +450,7 @@ class TableDetector {
       invoiceNumber: 'UNKNOWN',
       storeName,
       amount,
-      currency: 'BRL',
+        currency: 'AOA',
       date,
       paymentMethod: 'unknown',
       items: [],

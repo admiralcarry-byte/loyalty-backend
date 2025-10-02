@@ -367,7 +367,7 @@ router.post('/:userId/cashback/add', [
     const notificationModel = new Notification();
     await notificationModel.create({
       title: 'Cashback Added',
-      message: `R$ ${amount.toFixed(2)} cashback has been added to your wallet. Reason: ${reason}`,
+      message: `${amount.toFixed(2)} Kz cashback has been added to your wallet. Reason: ${reason}`,
       type: 'success',
       category: 'points',
       priority: 'normal',
@@ -381,7 +381,7 @@ router.post('/:userId/cashback/add', [
 
     res.json({
       success: true,
-      message: `R$ ${amount.toFixed(2)} cashback added successfully`,
+      message: `${amount.toFixed(2)} Kz cashback added successfully`,
       data: {
         user_id: userId,
         amount_added: amount,
@@ -459,7 +459,7 @@ router.post('/:userId/cashback/withdraw', [
     const notificationModel = new Notification();
     await notificationModel.create({
       title: 'Cashback Withdrawal',
-      message: `R$ ${amount.toFixed(2)} cashback withdrawal request submitted. Reason: ${reason}`,
+      message: `${amount.toFixed(2)} Kz cashback withdrawal request submitted. Reason: ${reason}`,
       type: 'info',
       category: 'points',
       priority: 'normal',
@@ -473,7 +473,7 @@ router.post('/:userId/cashback/withdraw', [
 
     res.json({
       success: true,
-      message: `R$ ${amount.toFixed(2)} cashback withdrawal request submitted`,
+      message: `${amount.toFixed(2)} Kz cashback withdrawal request submitted`,
       data: {
         user_id: userId,
         amount_withdrawn: amount,

@@ -75,6 +75,10 @@ async function startServer() {
       console.warn('Font helper initialization failed:', err.message);
     });
     
+    console.log('🔄 Starting database connection...');
+    await database.connect();
+    console.log('✅ MongoDB connected successfully');
+    
     console.log('🔄 Finding available port...');
     const availablePort = await findAvailablePort(PORT);
     
@@ -86,27 +90,14 @@ async function startServer() {
     app.listen(availablePort, () => {
       console.log(`🚀 Server running on port ${availablePort}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Health check: http://localhost:${availablePort}/api/health`);
+      console.log(`🔗 Health check: http://localhost:${availablePort}/health`);
       console.log(`📚 API Documentation: http://localhost:${availablePort}/api/docs`);
-      console.log(`🗄️  Database: MongoDB (connecting...)`);
+      console.log(`🗄️  Database: MongoDB`);
       console.log(`✅ Server startup complete!`);
     }).on('error', (err) => {
       console.error('❌ Server startup error:', err);
       process.exit(1);
     });
-    
-    // Connect to database asynchronously (non-blocking for Railway health checks)
-    console.log('🔄 Starting database connection...');
-    database.connect()
-      .then(() => {
-        console.log('✅ MongoDB connected successfully');
-      })
-      .catch((err) => {
-        console.error('❌ MongoDB connection failed:', err.message);
-        // Don't exit - let the server run without DB for health checks
-        console.log('⚠️  Server will continue running without database connection');
-      });
-      
   } catch (err) {
     console.error('❌ Failed to start server:', err);
     process.exit(1);
@@ -117,31 +108,39 @@ async function startServer() {
 startServer();
 
 // CORS configuration
+const getCorsOrigins = () => {
+  const baseOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:8080',
+    'http://localhost:8081'
+  ];
+
+  // Add production origins
+  const productionOrigins = [
+    'https://loyalty-frontend.netlify.app',
+    'https://loyalty-admin.netlify.app',
+    'https://loyalty-backend-production-8e32.up.railway.app'
+  ];
+
+  // Add environment-specific CORS origins if provided
+  const envCorsOrigin = process.env.CORS_ORIGIN;
+  if (envCorsOrigin) {
+    const envOrigins = envCorsOrigin.split(',').map(origin => origin.trim());
+    return [...baseOrigins, ...productionOrigins, ...envOrigins];
+  }
+
+  return [...baseOrigins, ...productionOrigins];
+};
+
 const corsOptions = {
-  origin: function (origin, callback) {
+  origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:5173',
-      'http://localhost:8080',
-      'http://localhost:8081',
-      'https://loyalty-frontend.netlify.app',
-      'https://loyalty-admin.netlify.app',
-      'https://loyalty-backend-production-8e32.up.railway.app'
-    ];
+    const allowedOrigins = getCorsOrigins();
     
-    // Add environment-specific origins
-    if (process.env.CORS_ORIGIN) {
-      if (process.env.CORS_ORIGIN === '*') {
-        return callback(null, true);
-      }
-      allowedOrigins.push(...process.env.CORS_ORIGIN.split(','));
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked origin: ${origin}`);
@@ -149,38 +148,36 @@ const corsOptions = {
     }
   },
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Origin',
-    'X-Requested-With',
-    'Content-Type',
-    'Accept',
-    'Authorization',
-    'Cache-Control',
-    'Pragma'
-  ],
   credentials: true,
   optionsSuccessStatus: 200,
-  preflightContinue: false
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 };
 
 app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
 
 // Security middleware - after CORS
 // app.use(helmet({
 //   crossOriginResourcePolicy: { policy: "cross-origin" }
 // }));
 // app.use(compression());
+
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {
+  const allowedOrigins = getCorsOrigins();
   res.json({ 
     message: 'CORS is working!', 
     origin: req.headers.origin,
-    timestamp: new Date().toISOString()
+    allowedOrigins: allowedOrigins,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
+
+// Log CORS configuration on startup
+console.log('🔒 CORS Configuration:');
+console.log('   Allowed Origins:', getCorsOrigins());
+console.log('   Environment CORS Origin:', process.env.CORS_ORIGIN || 'Not set');
 
 // Rate limiting - More lenient for development
 const limiter = rateLimit({

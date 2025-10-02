@@ -75,10 +75,6 @@ async function startServer() {
       console.warn('Font helper initialization failed:', err.message);
     });
     
-    console.log('🔄 Starting database connection...');
-    await database.connect();
-    console.log('✅ MongoDB connected successfully');
-    
     console.log('🔄 Finding available port...');
     const availablePort = await findAvailablePort(PORT);
     
@@ -90,14 +86,27 @@ async function startServer() {
     app.listen(availablePort, () => {
       console.log(`🚀 Server running on port ${availablePort}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Health check: http://localhost:${availablePort}/health`);
+      console.log(`🔗 Health check: http://localhost:${availablePort}/api/health`);
       console.log(`📚 API Documentation: http://localhost:${availablePort}/api/docs`);
-      console.log(`🗄️  Database: MongoDB`);
+      console.log(`🗄️  Database: MongoDB (connecting...)`);
       console.log(`✅ Server startup complete!`);
     }).on('error', (err) => {
       console.error('❌ Server startup error:', err);
       process.exit(1);
     });
+    
+    // Connect to database asynchronously (non-blocking for Railway health checks)
+    console.log('🔄 Starting database connection...');
+    database.connect()
+      .then(() => {
+        console.log('✅ MongoDB connected successfully');
+      })
+      .catch((err) => {
+        console.error('❌ MongoDB connection failed:', err.message);
+        // Don't exit - let the server run without DB for health checks
+        console.log('⚠️  Server will continue running without database connection');
+      });
+      
   } catch (err) {
     console.error('❌ Failed to start server:', err);
     process.exit(1);

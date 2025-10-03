@@ -216,26 +216,6 @@ router.get('/influencer-by-phone/:phone', verifyToken, async (req, res) => {
   }
 });
 
-// @route   GET /api/users/:id
-// @desc    Get user by ID
-// @access  Private (Admin/Manager)
-router.get('/:id', [verifyToken, requireManager], async (req, res) => {
-  try {
-    const { id } = req.params;
-    const user = await userController.getUserById(id);
-    
-    res.json({
-      success: true,
-      data: { user }
-    });
-  } catch (error) {
-    res.status(404).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
 // @route   POST /api/users/register-influencer
 // @desc    Register a new influencer
 // @access  Public
@@ -306,6 +286,27 @@ router.post('/register-influencer', [
     });
   }
 });
+
+// @route   GET /api/users/:id
+// @desc    Get user by ID
+// @access  Private (Admin/Manager)
+router.get('/:id', [verifyToken, requireManager], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await userController.getUserById(id);
+    
+    res.json({
+      success: true,
+      data: { user }
+    });
+  } catch (error) {
+    res.status(404).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 
 // @route   POST /api/users/register-customer
 // @desc    Register a new customer

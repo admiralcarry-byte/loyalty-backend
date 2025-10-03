@@ -152,7 +152,7 @@ router.post('/login', [
         storeNumber: seller.store_number,
         role: 'seller'
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET || 'aguatwezah_super_secret_jwt_key_2024',
       { expiresIn: '24h' }
     );
 

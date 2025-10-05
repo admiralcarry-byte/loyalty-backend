@@ -408,7 +408,7 @@ router.post('/register-customer', [
   body('email').isEmail().normalizeEmail().withMessage('Invalid email format'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
   body('phone').isLength({ min: 10, max: 20 }).withMessage('Invalid phone number format'),
-  body('influencerPhone').optional({ nullable: true, checkFalsy: true }).isLength({ min: 10, max: 20 }).withMessage('Invalid influencer phone number format')
+  body('influencerPhone').isLength({ min: 10, max: 20 }).withMessage('Influencer phone number is required and must be between 10-20 characters')
 ], async (req, res) => {
   try {
     // Check for validation errors
@@ -441,18 +441,16 @@ router.post('/register-customer', [
       });
     }
 
-    // If influencer phone is provided, validate it exists in database
-    if (influencerPhone) {
-      const influencer = await userModel.findOne({ 
-        phone: influencerPhone, 
-        role: 'influencer' 
+    // Validate that the influencer phone exists in database
+    const influencer = await userModel.findOne({ 
+      phone: influencerPhone, 
+      role: 'influencer' 
+    });
+    if (!influencer) {
+      return res.status(400).json({
+        success: false,
+        message: 'The influencer phone number does not exist in our system. Please verify the number.'
       });
-      if (!influencer) {
-        return res.status(400).json({
-          success: false,
-          message: 'The influencer phone number does not exist in our system. Please verify the number or leave it blank if you were not referred by an influencer.'
-        });
-      }
     }
 
     // Create new customer user
@@ -465,7 +463,7 @@ router.post('/register-customer', [
       role: 'customer',
       status: 'active',
       loyalty_tier: 'lead',
-      referred_by_phone: influencerPhone || undefined,
+      referred_by_phone: influencerPhone,
       verification: {
         email_verified: false,
         phone_verified: false

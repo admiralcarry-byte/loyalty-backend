@@ -292,11 +292,21 @@ router.post('/register-influencer', [
 // @access  Public (for registration form)
 router.get('/influencers', async (req, res) => {
   try {
+    console.log('Fetching influencers...');
+    
     // Get all active influencers with their basic info
-    const influencers = await userModel.find({ 
-      role: 'influencer',
-      status: 'active'
-    }).select('first_name last_name phone email').sort({ first_name: 1 });
+    const influencers = await userModel.findAll(
+      { 
+        role: 'influencer',
+        status: 'active'
+      },
+      {
+        select: 'first_name last_name phone email',
+        sort: { first_name: 1 }
+      }
+    );
+    
+    console.log('Found influencers:', influencers.length);
 
     // Format the response for dropdown usage
     const formattedInfluencers = influencers.map(influencer => ({
@@ -327,12 +337,19 @@ router.get('/customer-by-phone/:phone', async (req, res) => {
   try {
     const { phone } = req.params;
     
+    // Decode the phone number in case it's URL encoded
+    const decodedPhone = decodeURIComponent(phone);
+    
+    console.log('Searching for customer with phone:', decodedPhone);
+    
     // Find customer by phone number
     const customer = await userModel.findOne({ 
-      phone: phone,
+      phone: decodedPhone,
       role: { $in: ['customer', 'user'] },
       status: 'active'
-    }).select('first_name last_name email phone');
+    });
+    
+    console.log('Customer found:', customer ? 'Yes' : 'No');
 
     if (!customer) {
       return res.status(404).json({
@@ -499,10 +516,16 @@ router.get('/influencer-dashboard/:influencerId', [
     }
 
     // Get users referred by this influencer's phone number
-    const referredUsers = await userModel.find({ 
-      referred_by_phone: influencer.phone,
-      role: { $in: ['customer', 'user'] }
-    }).select('first_name last_name email phone total_purchases total_liters createdAt updatedAt').sort({ createdAt: -1 });
+    const referredUsers = await userModel.findAll(
+      { 
+        referred_by_phone: influencer.phone,
+        role: { $in: ['customer', 'user'] }
+      },
+      {
+        select: 'first_name last_name email phone total_purchases total_liters createdAt updatedAt',
+        sort: { createdAt: -1 }
+      }
+    );
 
     // Calculate totals
     const totalReferrals = referredUsers.length;
@@ -786,12 +809,20 @@ router.get('/test-influencer-data', [
 ], async (req, res) => {
   try {
     // Get all influencers
-    const influencers = await userModel.find({ role: 'influencer' }).select('first_name email phone createdAt');
+    const influencers = await userModel.findAll(
+      { role: 'influencer' },
+      { select: 'first_name email phone createdAt' }
+    );
     
     // Get all users with referral data
-    const usersWithReferrals = await userModel.find({ 
-      referred_by_phone: { $exists: true, $ne: null }
-    }).select('first_name last_name email phone referred_by_phone total_purchases total_liters createdAt updatedAt');
+    const usersWithReferrals = await userModel.findAll(
+      { 
+        referred_by_phone: { $exists: true, $ne: null }
+      },
+      {
+        select: 'first_name last_name email phone referred_by_phone total_purchases total_liters createdAt updatedAt'
+      }
+    );
 
     res.json({
       success: true,

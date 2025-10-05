@@ -10,8 +10,7 @@ const router = express.Router();
 // @access  Public
 router.post('/login', [
   body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('influencerPhone').optional({ nullable: true, checkFalsy: true }).isLength({ min: 10, max: 20 }).withMessage('Invalid influencer phone number format')
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
 ], async (req, res) => {
   try {
     // Check for validation errors
@@ -24,8 +23,8 @@ router.post('/login', [
       });
     }
 
-    const { email, password, influencerPhone } = req.body;
-    const result = await authController.login(email, password, influencerPhone);
+    const { email, password } = req.body;
+    const result = await authController.login(email, password);
     
     res.json({
       success: true,

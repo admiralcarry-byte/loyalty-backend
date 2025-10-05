@@ -121,7 +121,7 @@ class AuthController {
   }
 
   // User login
-  async login(email, password, influencerPhone = null) {
+  async login(email, password) {
     // Find user by email
     const user = await this.userModel.findByEmail(email);
     if (!user) {
@@ -137,24 +137,6 @@ class AuthController {
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       throw new Error('Invalid credentials');
-    }
-
-    // Check influencer phone validation
-    if (user.referred_by_phone) {
-      // User was referred by an influencer, so influencer phone is required
-      if (!influencerPhone) {
-        throw new Error('Influencer phone number is required for this account. Please enter the phone number of the influencer who referred you.');
-      }
-      
-      // Validate that the provided influencer phone matches the stored one
-      if (user.referred_by_phone !== influencerPhone) {
-        throw new Error('The influencer phone number does not match our records. Please verify the number or contact support if you believe this is an error.');
-      }
-    } else {
-      // User was not referred by an influencer, so influencer phone should not be provided
-      if (influencerPhone) {
-        throw new Error('This account was not referred by an influencer. Please leave the influencer phone number field blank.');
-      }
     }
 
     // Update last login

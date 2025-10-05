@@ -287,6 +287,81 @@ router.post('/register-influencer', [
   }
 });
 
+// @route   GET /api/users/influencers
+// @desc    Get all influencers for dropdown selection
+// @access  Public (for registration form)
+router.get('/influencers', async (req, res) => {
+  try {
+    // Get all active influencers with their basic info
+    const influencers = await userModel.find({ 
+      role: 'influencer',
+      status: 'active'
+    }).select('first_name last_name phone email').sort({ first_name: 1 });
+
+    // Format the response for dropdown usage
+    const formattedInfluencers = influencers.map(influencer => ({
+      id: influencer._id,
+      name: `${influencer.first_name} ${influencer.last_name || ''}`.trim(),
+      phone: influencer.phone,
+      email: influencer.email
+    }));
+
+    res.json({
+      success: true,
+      data: formattedInfluencers
+    });
+
+  } catch (error) {
+    console.error('Error fetching influencers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching influencers'
+    });
+  }
+});
+
+// @route   GET /api/users/customer-by-phone/:phone
+// @desc    Get customer by phone number for invoice creation
+// @access  Public (for billing integration)
+router.get('/customer-by-phone/:phone', async (req, res) => {
+  try {
+    const { phone } = req.params;
+    
+    // Find customer by phone number
+    const customer = await userModel.findOne({ 
+      phone: phone,
+      role: { $in: ['customer', 'user'] },
+      status: 'active'
+    }).select('first_name last_name email phone');
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found with this phone number'
+      });
+    }
+
+    // Format the response
+    const customerData = {
+      id: customer._id,
+      name: `${customer.first_name} ${customer.last_name || ''}`.trim(),
+      email: customer.email,
+      phone: customer.phone
+    };
+
+    res.json({
+      success: true,
+      data: customerData
+    });
+  } catch (error) {
+    console.error('Error fetching customer by phone:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching customer data'
+    });
+  }
+});
+
 // @route   GET /api/users/:id
 // @desc    Get user by ID
 // @access  Private (Admin/Manager)
@@ -699,81 +774,6 @@ router.post('/:id/reset-password', [
     res.status(400).json({
       success: false,
       error: error.message
-    });
-  }
-});
-
-// @route   GET /api/users/influencers
-// @desc    Get all influencers for dropdown selection
-// @access  Public (for registration form)
-router.get('/influencers', async (req, res) => {
-  try {
-    // Get all active influencers with their basic info
-    const influencers = await userModel.find({ 
-      role: 'influencer',
-      status: 'active'
-    }).select('first_name last_name phone email').sort({ first_name: 1 });
-
-    // Format the response for dropdown usage
-    const formattedInfluencers = influencers.map(influencer => ({
-      id: influencer._id,
-      name: `${influencer.first_name} ${influencer.last_name || ''}`.trim(),
-      phone: influencer.phone,
-      email: influencer.email
-    }));
-
-    res.json({
-      success: true,
-      data: formattedInfluencers
-    });
-
-  } catch (error) {
-    console.error('Error fetching influencers:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching influencers'
-    });
-  }
-});
-
-// @route   GET /api/users/customer-by-phone/:phone
-// @desc    Get customer by phone number for invoice creation
-// @access  Public (for billing integration)
-router.get('/customer-by-phone/:phone', async (req, res) => {
-  try {
-    const { phone } = req.params;
-    
-    // Find customer by phone number
-    const customer = await userModel.findOne({ 
-      phone: phone,
-      role: { $in: ['customer', 'user'] },
-      status: 'active'
-    }).select('first_name last_name email phone');
-
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: 'Customer not found with this phone number'
-      });
-    }
-
-    // Format the response
-    const customerData = {
-      id: customer._id,
-      name: `${customer.first_name} ${customer.last_name || ''}`.trim(),
-      email: customer.email,
-      phone: customer.phone
-    };
-
-    res.json({
-      success: true,
-      data: customerData
-    });
-  } catch (error) {
-    console.error('Error fetching customer by phone:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching customer data'
     });
   }
 });

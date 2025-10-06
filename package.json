@@ -27,7 +27,9 @@
     "create-env": "node scripts/create-env.js",
     "test-cors": "node scripts/test-cors.js",
     "test-railway": "node scripts/test-railway-health.js",
-    "local-dev": "npm run setup-db && npm run seed && npm run dev"
+    "local-dev": "npm run setup-db && npm run seed && npm run dev",
+    "dev:local": "npm run local-dev",
+    "start:local": "npm run setup-db && npm run seed && npm start"
   },
   "keywords": [
     "express",
